@@ -189,7 +189,7 @@ void cb_sub(struct mosquitto *mosq, void *userdata, const struct mosquitto_messa
 	// printf("%s == %s  %s\n", t->metric, t->type, payload);
 	printf("PUTVAL %s/%s/%s-%s %ld:%.2lf\n",
 		ud->nodename,
-		"mqtt",
+		PROGNAME,
 		t->type,
 		t->metric,
 		now,
@@ -219,13 +219,13 @@ int main(int argc, char **argv)
 	int do_tls = FALSE, tls_insecure = FALSE;
 	int do_psk = FALSE;
 	char *psk_key = NULL, *psk_identity = NULL;
-	char *nodename;
+	char *nodename, *username = NULL, *password = NULL;
 	struct udata udata;
 
 
 	setvbuf(stdout, NULL, _IONBF, 0);
 
-	while ((ch = getopt(argc, argv, "i:t:h:p:C:LUK:I:")) != EOF) {
+	while ((ch = getopt(argc, argv, "i:t:h:p:C:u:P:K:I:")) != EOF) {
 		switch (ch) {
 			case 'C':
 				ca_file = optarg;
@@ -244,6 +244,12 @@ int main(int argc, char **argv)
 				psk_identity = optarg;
 				do_psk = TRUE;
 				break;
+			case 'u':
+				username = strdup(optarg);
+				break;
+			case 'P':
+				password = strdup(optarg);
+				break;
 			case 'K':
 				psk_key = optarg;
 				do_psk = TRUE;
@@ -260,7 +266,7 @@ int main(int argc, char **argv)
 		usage = 1;
 
 	if (usage) {
-		fprintf(stderr, "Usage: %s [-h host] [-p port] [-C CA-cert] [-L] [-U] [-K psk-key] [-I psk-identity] [-s]\n", progname);
+		fprintf(stderr, "Usage: %s [-h host] [-p port] [-C CA-cert] [-u username] [-P password] [-K psk-key] [-I psk-identity] [-s]\n", progname);
 		exit(1);
 	}
 
@@ -313,6 +319,10 @@ int main(int argc, char **argv)
 			mosquitto_tls_insecure_set(m, TRUE);
 #endif
 		}
+	}
+
+	if (username) {
+		mosquitto_username_pw_set(m, username, password);
 	}
 
 	mosquitto_message_callback_set(m, cb_sub);
