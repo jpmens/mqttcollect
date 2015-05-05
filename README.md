@@ -1,8 +1,8 @@
 # collectd-mqtt-sys
 
-This is an executable  for the [collectd Exec plugin](https://collectd.org/documentation/manpages/collectd-exec.5.shtml).
+This is an executable  for the [collectd Exec plugin](https://collectd.org/documentation/manpages/collectd-exec.5.shtml) which subscribes to an MQTT broker's `$SYS/#` topic branch, determines metrics you wish to feed to _collectd_ and does just that as soon as the broker delivers the data.
 
-An internal hash is loaded with the following data:
+Upon startup, an internal hash is loaded with the following data:
 
 * a _metric_ which is sent to collectd
 * a _topic_ from MQTT
@@ -89,6 +89,8 @@ select * from "hippo/mqtt-sys/counter-msgs.received"
 
 ## Requirements
 
+* An MQTT broker, e.g. [Mosquitto](http://mosquitto.org)
+* libMosquitto
 * [collectd](http://collectd.org)
 * [InfluxDB](http://influxdb.com)
 
