@@ -175,12 +175,13 @@ int main(int argc, char **argv)
 	int have_host = FALSE;
 	char *psk_key = NULL, *psk_identity = NULL;
 	char *nodename, *username = NULL, *password = NULL;
+	char *collectdnode = NULL;
 	struct udata udata;
 
 
 	setvbuf(stdout, NULL, _IONBF, 0);
 
-	while ((ch = getopt(argc, argv, "i:t:h:p:C:u:P:K:I:")) != EOF) {
+	while ((ch = getopt(argc, argv, "i:t:h:p:C:u:P:K:N:I:")) != EOF) {
 		switch (ch) {
 			case 'C':
 				ca_file = optarg;
@@ -199,6 +200,9 @@ int main(int argc, char **argv)
 			case 'I':
 				psk_identity = optarg;
 				do_psk = TRUE;
+				break;
+			case 'N':
+				collectdnode = strdup(optarg);
 				break;
 			case 'u':
 				username = strdup(optarg);
@@ -222,7 +226,7 @@ int main(int argc, char **argv)
 		usage = 1;
 
 	if (usage) {
-		fprintf(stderr, "Usage: %s [-h host] [-p port] [-C CA-cert] [-u username] [-P password] [-K psk-key] [-I psk-identity] [-s]\n", progname);
+		fprintf(stderr, "Usage: %s [-h host] [-p port] [-C CA-cert] [-u username] [-P password] [-K psk-key] [-I psk-identity] [-s] [-N nodename]\n", progname);
 		exit(1);
 	}
 
@@ -236,15 +240,17 @@ int main(int argc, char **argv)
 	} else {
 
 		if (uname(&uts) == 0) {
-			//char *p;
+			char *p;
 			nodename = strdup(uts.nodename);
 
-			//if ((p = strchr(nodename, '.')) != NULL)
-			//*p = 0;
+			if ((p = strchr(nodename, '.')) != NULL)
+				*p = 0;
 		} else {
 			nodename = strdup("unknown");
 		}
 	}
+
+	nodename = (collectdnode) ? collectdnode : nodename;
 
 	mosquitto_lib_init();
 
