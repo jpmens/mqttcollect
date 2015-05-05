@@ -8,7 +8,27 @@ An internal hash is loaded with the following data:
 * a _topic_ from MQTT
 * a metric _type_ as defined by [types.db](https://github.com/astro/collectd/blob/master/src/types.db)
 
-Configuration of the values you need is done in the .c file; specify NULL as the name of the metric if you don't want it sent to InfluxDB.
+Configuration of the values you need is done in the `metrics.h` file; specify NULL as the name of the metric if you don't want it sent to InfluxDB.
+
+```c
+/*
+ * The table of metric names we want to process.
+ * Each metric has three values:
+ *
+ * 1. METRIC name which is what collectd gets. NULL if you don't want this topic.
+ * 2. TYPE from the collectd types.db (left column)
+ * 3. TOPIC as read from your MQTT broker
+ *
+ * This must be valid C source code.
+ */
+
+  { NULL,               "gauge",        "$SYS/broker/version"   },
+  { NULL,               "gauge",        "$SYS/broker/timestamp" },
+  { "broker.uptime",    "uptime",       "$SYS/broker/uptime"                            },
+  { NULL,               "gauge",        "$SYS/broker/clients/total"                     },
+  { NULL,               "gauge",        "$SYS/broker/clients/inactive"                  },
+  { "clients.active",   "gauge",        "$SYS/broker/clients/active"                    },
+```
 
 After building _mqtt-sys_, point it at your Mosquitto (or other broker with `$SYS/` support) and, on the command-line you should see something like this:
 

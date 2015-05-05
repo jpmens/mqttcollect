@@ -55,52 +55,7 @@ static struct _metrics {
     const char *type;		/* collectd type: https://github.com/astro/collectd/blob/master/src/types.db*/
     const char *topic;          /* MQTT topic name */
 } metrics[] = {
-  { NULL,		"gauge",	"$SYS/broker/version"	},
-  { NULL,		"gauge",	"$SYS/broker/timestamp"	},
-  { "broker.uptime",	"uptime",	"$SYS/broker/uptime"				},
-  { NULL,		"gauge",	"$SYS/broker/clients/total"			},
-  { NULL,		"gauge",	"$SYS/broker/clients/inactive"			},
-  { "clients.active",	"gauge",	"$SYS/broker/clients/active"			},
-  { NULL,		"gauge",	"$SYS/broker/clients/maximum"			},
-  { NULL,		"gauge",	"$SYS/broker/clients/expired"			},
-  { NULL,		"gauge",	"$SYS/broker/messages/stored"			},
-  { NULL,		"gauge",	"$SYS/broker/messages/received"			},
-  { NULL,		"gauge",	"$SYS/broker/messages/sent"			},
-  { NULL,		"gauge",	"$SYS/broker/subscriptions/count"		},
-  { NULL,		"gauge",	"$SYS/broker/retained messages/count"		},
-  { NULL,		"gauge",	"$SYS/broker/heap/current"			},
-  { "heap.max",		"gauge",	"$SYS/broker/heap/maximum"			},
-  { NULL,		"gauge",	"$SYS/broker/publish/messages/dropped"		},
-  { "msgs.received",	"counter",	"$SYS/broker/publish/messages/received"		},
-  { NULL,		"gauge",	"$SYS/broker/publish/messages/sent"		},
-  { NULL,		"gauge",	"$SYS/broker/publish/bytes/received"		},
-  { NULL,		"gauge",	"$SYS/broker/publish/bytes/sent"		},
-  { NULL,		"gauge",	"$SYS/broker/bytes/received"			},
-  { NULL,		"gauge",	"$SYS/broker/bytes/sent"			},
-  { NULL,		"gauge",	"$SYS/broker/load/messages/received/1min"	},
-  { "broker.msgs.rec.5m",	"gauge",	"$SYS/broker/load/messages/received/5min"	},
-  { NULL,		"gauge",	"$SYS/broker/load/messages/received/15min"	},
-  { NULL,		"gauge",	"$SYS/broker/load/messages/sent/1min"		},
-  { NULL,		"gauge",	"$SYS/broker/load/messages/sent/5min"		},
-  { NULL,		"gauge",	"$SYS/broker/load/messages/sent/15min"		},
-  { NULL,		"gauge",	"$SYS/broker/load/bytes/received/1min"		},
-  { NULL,		"gauge",	"$SYS/broker/load/bytes/received/5min"		},
-  { NULL,		"gauge",	"$SYS/broker/load/bytes/received/15min"		},
-  { NULL,		"gauge",	"$SYS/broker/load/bytes/sent/1min"		},
-  { NULL,		"gauge",	"$SYS/broker/load/bytes/sent/5min"		},
-  { NULL,		"gauge",	"$SYS/broker/load/bytes/sent/15min"		},
-  { NULL,		"gauge",	"$SYS/broker/load/sockets/1min"			},
-  { NULL,		"gauge",	"$SYS/broker/load/sockets/5min"			},
-  { NULL,		"gauge",	"$SYS/broker/load/sockets/15min"		},
-  { "connections.1m",	"connections",	"$SYS/broker/load/connections/1min"		},
-  { NULL,		"gauge",	"$SYS/broker/load/connections/5min"		},
-  { NULL,		"gauge",	"$SYS/broker/load/connections/15min"		},
-  { NULL,		"gauge",	"$SYS/broker/load/publish/received/1min"	},
-  { NULL,		"gauge",	"$SYS/broker/load/publish/received/5min"	},
-  { NULL,		"gauge",	"$SYS/broker/load/publish/received/15min"	},
-  { NULL,		"gauge",	"$SYS/broker/load/publish/sent/1min"		},
-  { NULL,		"gauge",	"$SYS/broker/load/publish/sent/5min"		},
-  { NULL,		"gauge",	"$SYS/broker/load/publish/sent/15min"		},
+#include "metrics.h"
 };
 
 struct tname {
@@ -217,6 +172,7 @@ int main(int argc, char **argv)
 	int port = 1883, keepalive = 60;
 	int do_tls = FALSE, tls_insecure = FALSE;
 	int do_psk = FALSE;
+	int have_host = FALSE;
 	char *psk_key = NULL, *psk_identity = NULL;
 	char *nodename, *username = NULL, *password = NULL;
 	struct udata udata;
@@ -231,7 +187,8 @@ int main(int argc, char **argv)
 				do_tls = TRUE;
 				break;
 			case 'h':
-				host = optarg;
+				host = strdup(optarg);
+				have_host = TRUE;
 				break;
 			case 's':
 				tls_insecure = TRUE;
@@ -271,16 +228,22 @@ int main(int argc, char **argv)
 
 	loadhashtable();
 
-	/* Find nodename; chop at first '.' */
+	/* Determine nodename: either use the -h value of the MQTT broker
+	 * or get local nodename */
 
-	if (uname(&uts) == 0) {
-		char *p;
-		nodename = strdup(uts.nodename);
-
-		if ((p = strchr(nodename, '.')) != NULL)
-			*p = 0;
+	if (have_host) {
+		nodename = host;
 	} else {
-		nodename = strdup("unknown");
+
+		if (uname(&uts) == 0) {
+			//char *p;
+			nodename = strdup(uts.nodename);
+
+			//if ((p = strchr(nodename, '.')) != NULL)
+			//*p = 0;
+		} else {
+			nodename = strdup("unknown");
+		}
 	}
 
 	mosquitto_lib_init();
