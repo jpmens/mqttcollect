@@ -8,6 +8,17 @@ An internal hash is loaded with the following data:
 * a _topic_ from MQTT
 * a metric _type_ as defined by [types.db](https://github.com/astro/collectd/blob/master/src/types.db)
 
+Configuration of the values you need is done in the .c file; specify NULL as the name of the metric if you don't want it sent to InfluxDB.
+
+After building _mqtt-sys_, point it at your Mosquitto (or other broker with `$SYS/` support) and, on the command-line you should see something like this:
+
+```
+PUTVAL tiggr/mqtt-sys/uptime-broker.uptime 1430850265:362164.00
+PUTVAL tiggr/mqtt-sys/gauge-clients.active 1430850265:2.00
+PUTVAL tiggr/mqtt-sys/gauge-heap.max 1430850265:48656.00
+...
+```
+
 
 ## influxdb
 
