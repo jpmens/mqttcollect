@@ -126,11 +126,11 @@ OPTIONS
 
 
        −u  username
-	      for the MQTT connection.
+	      for the MQTT connection. This overrides $MQTTSYSUSER if set.
 
 
        −P  password
-	      for the MQTT connection.
+	      for the MQTT connection. This overrides $MQTTSYSPASS if set.
 
 
        −K  psk‐key
@@ -144,8 +144,18 @@ OPTIONS
 	      option
 
 
+ENVIRONMENT
+       mqtt‐sys uses the values MQTTSYSUSER and MQTTSYSPASS to predefine user‐
+       name and password for the ‐u and ‐p options respectively.
+
+
 AUTHOR
        Jan‐Piet Mens
+
+
+BUGS
+       Options (such as ‐u and ‐p) specified on the command line  are  visible
+       in the system’s process list and thus by other users.
 
 
 SEE ALSO

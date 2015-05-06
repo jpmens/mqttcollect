@@ -205,10 +205,14 @@ may be specified multiple times and causes
 to subscribe to that topic. Defaults to "$SYS/#" if not specified.
 
 .IP "\fB\-u  \fIusername\fR"
-for the MQTT connection.
+for the MQTT connection. This overrides
+.B $MQTTSYSUSER
+if set.
 
 .IP "\fB\-P  \fIpassword\fR"
-for the MQTT connection.
+for the MQTT connection. This overrides
+.B $MQTTSYSPASS
+if set.
 
 .IP "\fB\-K  \fIpsk-key\fR"
 for the MQTT connection.
@@ -221,9 +225,29 @@ node name, which without this option, defaults to the short local hostname or th
 .B -h
 option
 
+.SH ENVIRONMENT
+
+.I mqtt-sys
+uses the values
+.B MQTTSYSUSER and
+.B MQTTSYSPASS
+to predefine username and password for the
+.B -u
+and
+.B -p
+options respectively.
+
 .SH AUTHOR
 
 Jan-Piet Mens
+
+.SH BUGS
+
+Options (such as
+.B -u
+and
+.BR -p )
+specified on the command line are visible in the system's process list and thus by other users.
 
 .SH "SEE ALSO"
 

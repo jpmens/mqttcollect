@@ -104,12 +104,9 @@ void loadmetrics(char *filename)
 			continue;
 
 		topic = type + strlen(type) + 1;	// skip over 0
-		for (; isspace(*topic); topic++) {
+		for (; isspace(*topic); topic++) {	// strip leading white
 			;
 		}
-
-
-		// printf("m=%s, t=%s, o=%s\n", metric, type, topic);
 
 		t = (struct tname *)malloc(sizeof(struct tname));
 		t->topic  = strdup(topic);
@@ -163,7 +160,6 @@ void cb_sub(struct mosquitto *mosq, void *userdata, const struct mosquitto_messa
 	time(&now);
 	val = atof(payload);
 
-	// printf("%s == %s  %s\n", t->metric, t->type, payload);
 	printf("PUTVAL %s/%s/%s-%s %ld:%.2lf\n",
 		ud->nodename,
 		PROGNAME,
@@ -207,6 +203,9 @@ int main(int argc, char **argv)
 	setvbuf(stdout, NULL, _IONBF, 0);
 
 	utarray_new(topics, &ut_str_icd);
+
+	username = getenv("MQTTSYSUSER");
+	password = getenv("MQTTSYSPASS");
 
 	while ((ch = getopt(argc, argv, "t:h:p:C:u:P:K:N:I:f:")) != EOF) {
 		switch (ch) {
@@ -290,8 +289,7 @@ int main(int argc, char **argv)
 	udata.nodename = nodename;
 
 	sprintf(clientid, "%s-%d", PROGNAME, getpid());
-	m = mosquitto_new(clientid, TRUE, (void *)&udata);
-	if (!m) {
+	if ((m = mosquitto_new(clientid, TRUE, (void *)&udata)) == NULL) {
 		fprintf(stderr, "Out of memory.\n");
 		exit(1);
 	}
@@ -328,6 +326,7 @@ int main(int argc, char **argv)
 
 	mosquitto_message_callback_set(m, cb_sub);
 	mosquitto_disconnect_callback_set(m, cb_disconnect);
+
 	if ((rc = mosquitto_connect(m, host, port, keepalive)) != MOSQ_ERR_SUCCESS) {
 		fprintf(stderr, "Unable to connect to %s:%d: %s\n", host, port,
 			mosquitto_strerror(rc));
@@ -337,6 +336,11 @@ int main(int argc, char **argv)
 
 	signal(SIGINT, catcher);
 
+	/*
+	 * Set up subscriptions to all topics specified as `-t'; if none
+	 * were, then configure default $SYS/#
+	 */
+
 	if (utarray_len(topics) == 0) {
 		char *sys = TOPIC_SYS;
 
@@ -345,7 +349,6 @@ int main(int argc, char **argv)
 
 	t = NULL;
 	while ((t = (char **)utarray_next(topics, t))) {
-		// printf("sub to %s\n", *t);
 		mosquitto_subscribe(m, NULL, *t, 0);
 	}
 
@@ -358,6 +361,8 @@ int main(int argc, char **argv)
 			mosquitto_reconnect(m);
 		}
 	}
+
+	/* Unreched */
 
 	free(nodename);
 
