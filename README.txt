@@ -20,6 +20,13 @@ DESCRIPTION
        PUTVAL tiggr/mqtt‐sys/gauge‐clients.inactive 1430914033:0.00
 
 
+       collectd launches mqtt‐sys which connects to the configured  MQTT  bro‐
+       ker, subscribes and waits for publishes to subscribed topics in an end‐
+       less loop. If an error occurs or the program exits for  whichever  rea‐
+       son,  collectd will restart it, and collectd logs the reason it its log
+       file.
+
+
    MQTT subscriptions
        By default, mqtt‐sys subscribes to the $SYS/# topic tree of the	speci‐
        fied  MQTT  broker, but any number of topic subscriptions can be set up
