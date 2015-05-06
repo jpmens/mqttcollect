@@ -48,6 +48,17 @@ PUTVAL tiggr/mqtt-sys/gauge-clients.inactive 1430914033:0.00
 \...
 .fi
 
+.PP
+.I collectd
+launches
+.I mqtt-sys
+which connects to the configured MQTT broker, subscribes and waits for publishes to subscribed topics in an
+endless loop. If an error occurs or the program exits for whichever reason,
+.I collectd
+will restart it, and
+.I collectd
+logs the reason it its log file.
+
 .SS "MQTT subscriptions"
 
 By default,
@@ -67,21 +78,21 @@ is subscribed to a topic but doesn't pass that to
 
 .SS "Metrics map"
 
-The MQTT 
+The MQTT
 .I topic
-to 
+to
 .I collectd metrics
-mapping is configured through a 
+mapping is configured through a
 .I metrics
 file you provide. Lines which start with # and empty lines are ignored.
-All other lines must have three white-space separated tokens. 
+All other lines must have three white-space separated tokens.
 The
 .I metric name
 which is what is passed to
 .IR collectd ,
 the
 .I type
-of the metric (from 
+of the metric (from
 .IR types.db ),
 and the MQTT
 .IR "topic name" .
@@ -95,13 +106,13 @@ msgs.count         gauge   $SYS/broker/retained messages/count`
 
 .SS InfluxDB
 
-As an example, we show how to configure 
+As an example, we show how to configure
 .I InfluxDB
-to accept values from 
+to accept values from
 .I collectd
-via the latter's 
+via the latter's
 .I network
-plugin.  Configure 
+plugin.  Configure
 .I InfluxDB
 to launch the native collectd input:
 
@@ -119,15 +130,15 @@ to launch the native collectd input:
 
 .SS collectd
 
-Configure 
+Configure
 .I collectd
-to send its metrics to 
+to send its metrics to
 .I InfluxDB
-via the 
+via the
 .I network
 plugin which talks to
 .IR InfluxDB .
-(Compare the port numbers here and above in 
+(Compare the port numbers here and above in
 .IR InfluxDB .)
 
 .nf
@@ -139,11 +150,11 @@ LoadPlugin network
 </Plugin>
 .fi
 
-Configure 
+Configure
 .I collectd
-to load our executable 
+to load our executable
 .I mqtt-sys
-via its 
+via its
 .I exec
 mechanism. Specify
 .I mqtt-sys
@@ -159,14 +170,14 @@ LoadPlugin exec
 
 .SS Testing
 
-Launch 
+Launch
 .I mqtt-sys
 on the command line; you should see PUTVAL statements being printed. If that works
 configure
 .I collectd
 as described above.
 
-To see if whether your values are being passed to 
+To see if whether your values are being passed to
 .IR InfluxDB :
 
 .nf
@@ -192,7 +203,7 @@ gives the TCP port number for the MQTT broker; defaults to 1883.
 use insecure TLS.
 
 .IP "\fB\-f \fImetrics\fR"
-is the path to the metrics file which defaults to "/usr/local/etc/mqtt-sys.metrics". If 
+is the path to the metrics file which defaults to "/usr/local/etc/mqtt-sys.metrics". If
 this file cannot be read, the program exits with a diagnostic
 message.
 
@@ -200,7 +211,7 @@ message.
 sets the identity for PSK.
 
 .IP "\fB\-t \fItopic\fR"
-may be specified multiple times and causes 
+may be specified multiple times and causes
 .I mqtt-sys
 to subscribe to that topic. Defaults to "$SYS/#" if not specified.
 
