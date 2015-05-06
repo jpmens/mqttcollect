@@ -208,7 +208,7 @@ int main(int argc, char **argv)
 
 	utarray_new(topics, &ut_str_icd);
 
-	while ((ch = getopt(argc, argv, "i:t:h:p:C:u:P:K:N:I:f:")) != EOF) {
+	while ((ch = getopt(argc, argv, "t:h:p:C:u:P:K:N:I:f:")) != EOF) {
 		switch (ch) {
 			case 'C':
 				ca_file = optarg;

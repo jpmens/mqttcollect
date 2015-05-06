@@ -23,6 +23,8 @@ mqtt-sys \- MQTT "$SYS/#"-subscriber for collectd exec
 .I psk-identity
 .B ] [-s] [-N
 .I nodename
+.B ] [-f
+.I metrics
 .B ] [-t
 .I topic...
 .B ]
@@ -45,7 +47,7 @@ plugin block.
 
 By default,
 .I mqtt-sys
-subscribes to the $SYS/# topic tree of the specified MQTT broker, but any number of topic subscrptions can be set up using
+subscribes to the $SYS/# topic tree of the specified MQTT broker, but any number of topic subscriptions can be set up using
 .BR -t .
 Whether or not the payload of a received message is actually passed to
 .I collectd
@@ -62,10 +64,12 @@ is subscribed to a topic but doesn't pass that to
 The MQTT 
 .I topic
 to 
-.I collectd metric
-mapping is configured at compile time from the file
-.IR metrics.h .
-Each metric has three values: the
+.I collectd metrics
+mapping is configured through a 
+.I metrics
+file you provide. Lines which start with # and empty lines are ignored.
+All other lines must have three white-space separated tokens. 
+The
 .I metric name
 which is what is passed to
 .IR collectd ,
@@ -77,41 +81,108 @@ and the MQTT
 .IR "topic name" .
 .PP
 .nf
-/*
- * 1. METRIC name which is what collectd gets. NULL if you don't want this topic.
- * 2. TYPE from the collectd types.db (left column)
- * 3. TOPIC as read from your MQTT broker
- *
- * This must be valid C source code.
- */
-
-  { "temp.living",      "gauge",        "arduino/temp/celsius"  },
-
-  { NULL,               "gauge",        "$SYS/broker/version"   },
-  { NULL,               "gauge",        "$SYS/broker/timestamp" },
-  { "broker.uptime",    "uptime",       "$SYS/broker/uptime"    },
-  ...
+temp.living        gauge   arduino/temp/celsius
+bROKER.UPTIme      uptime  $SYS/broker/uptime
+msgs.count         gauge   $SYS/broker/retained messages/count`
 .fi
 .PP
-If a particular metric should not be handled by
-.IR mqtt-sys ,
-even though the program would receive it due to a subscription, specify
-.SM NULL
-as the metric name.
+
+.SS influxdb
+
+Configure InfluxDB to launch the native collect input:
+
+.nf
+[input_plugins]
+
+  # Configure the collectd api
+  [input_plugins.collectd]
+  enabled = true
+  # address = "0.0.0.0" # If not set, is actually set to bind-address.
+  port = 25826
+  database = "collectd"
+  # types.db can be found in a collectd installation or on github:
+  # https://github.com/collectd/collectd/blob/master/src/types.db
+  typesdb = "/usr/share/collectd/types.db" # The path to the collectd types.db file
+.fi
+
+.SS collectd
+
+Configure collectd to send its metrics to InfluxDB via the _network_ plugin which talks to InfluxDB. (Compare the port numbers here and above in InfluxDB.)
+
+.nf
+LoadPlugin network
+
+<Plugin "network">
+  # influxdb
+    Server "127.0.0.1" "25826"
+</Plugin>
+.fi
+
+Configure collectd to load our executable via the _exec_ mechanism. Specify options as you need them.
+
+.nf
+LoadPlugin exec
+
+<Plugin exec>
+   Exec "mosquitto:mosquitto" "/usr/bin/mqtt-sys" "-u" "jjolie" "-P" "secret"
+</Plugin>
+.fi
+
+.SS Testing
+
+To see if whether your values are being passed to InfluxDB:
+
+.nf
+select * from "hippo/mqtt-sys/connections-connections.1m"
+select * from "hippo/mqtt-sys/counter-msgs.received"
+.fi
 
 .SH OPTIONS
 
-.IP -N nodename
+.IP "\fB\-C\fR \fIca-file\fR"
+specifies the PEM-encoded CA certificate file to use for TLS.
+
+.IP "\fB\-h \fIhost\fR"
+is the hostname or address of the MQTT broker. Unless overriden by
+.B -N
+this also sets the collectd
+.IR nodename .
+
+.IP "\fB\-p \fIport\fR"
+gives the TCP port number for the MQTT broker; defaults to 1883.
+
+.IP "\fB\-s\fR"
+use insecure TLS.
+
+.IP "\fB\-f \fImetrics\fR"
+is the path to the metrics file which defaults to "./metrics". If 
+this file cannot be read, the program exits with a diagnostic
+message.
+
+.IP "\fB\-I \fIpsk-identity\fR"
+sets the identity for PSK.
+
+.IP "\fB\-t \fItopic\fR"
+may be specified multiple times and causes 
+.I mqtt-sys
+to subscribe to that topic. Defaults to "$SYS/#" if not specified.
+
+.IP "\fB\-u  \fIsername\fR"
+for the MQTT connection.
+
+.IP "\fB\-P  \fIassword\fR"
+for the MQTT connection.
+
+.IP "\fB\-K  \fIsk-key\fR"
+for the MQTT connection.
+
+
+.IP "\fB\-N  \fIodename\fR"
 Overrides the
 .IR collectd
 node name, which without this option, defaults to the short local hostname or the value of the
 .B -h
 option
-
-Here is a short summary of all options accepted by \fBcdb\fR utility:
-
-.IP \fB\-0\fR
-zero-fill duplicate records in create (\fB\-c\fR) mode.
 
 .SH AUTHOR
 
@@ -121,4 +192,5 @@ Jan-Piet Mens
 
 .IR collectd (1),
 .IR mosquitto (8)
+.IR uthash (http://troydhanson.github.io/uthash/userguide.html)
 
