@@ -75,7 +75,7 @@ DESCRIPTION
        LoadPlugin exec
 
        <Plugin exec>
-	  Exec "mosquitto:mosquitto" "/usr/bin/mqtt‐sys" "‐u" "jjolie" "‐P" "secret"
+	  Exec "mosquitto:mosquitto" "/usr/bin/mqtt‐sys" "‐u" "jjolie" "‐P" "secret" "‐f" "/etc/metrics"
        </Plugin>
 
 
