@@ -37,6 +37,7 @@
 #include <signal.h>
 #include <mosquitto.h>
 #include <errno.h>
+#include <ctype.h>
 #include "uthash.h"
 #include "utarray.h"
 
@@ -50,14 +51,7 @@
 #define PROGNAME	"mqtt-sys"
 #define TOPIC_SYS	"$SYS/#"
 #define DIM(x)		( sizeof(x) / sizeof(x[0]) )
-
-static struct _metrics {
-    const char *metric;         /* collectd metric name */
-    const char *type;		/* collectd type: https://github.com/astro/collectd/blob/master/src/types.db*/
-    const char *topic;          /* MQTT topic name */
-} metrics[] = {
-#include "metrics.h"
-};
+#define METRICSFILE	"metrics"
 
 struct tname {
     const char *topic;          /* MQTT topic */
@@ -74,26 +68,56 @@ struct udata {
 };
 
 /*
- * Load the uthash table with topic -> metric if, and only if,
- * metric is not NULL
+ * Load the uthash table with topic -> metric
  */
 
-void loadhashtable()
+void loadmetrics(char *filename)
 {
-    struct _metrics *mm = metrics;
-    struct tname *t;
-    int i;
+	struct tname *t;
+	FILE *fp;
+	char buf[8192], *metric, *type, *topic;
 
-    for (i = 0; i < DIM(metrics); mm = &metrics[++i]) {
-    	if (mm->metric) {
-		//  printf("%s\n", mm->metric);
+	if ((fp = fopen(filename, "r")) == NULL) {
+		fprintf(stderr, "%s: cannot open metrics file %s: %s\n",
+			PROGNAME, filename, strerror(errno));
+		exit(2);
+	}
+
+	while (fgets(buf, sizeof(buf), fp) != NULL) {
+		char *bp;
+
+		if (*buf == '#')
+			continue;
+
+		for (bp = buf + strlen(buf) - 1; bp >= buf; bp--) {
+			if (isspace(*bp))
+				*bp = 0;
+			else
+				break;
+		}
+		if (*buf == 0)
+			continue;
+
+		if ((metric = strtok(buf, " \t")) == NULL)
+			continue;
+		if ((type = strtok(NULL, " \t")) == NULL)
+			continue;
+
+		topic = type + strlen(type) + 1;	// skip over 0
+		for (; isspace(*topic); topic++) {
+			;
+		}
+
+
+		// printf("m=%s, t=%s, o=%s\n", metric, type, topic);
+
 		t = (struct tname *)malloc(sizeof(struct tname));
-		t->topic  = mm->topic;
-		t->metric = mm->metric;
-		t->type	  = mm->type;
+		t->topic  = strdup(topic);
+		t->metric = strdup(metric);
+		t->type	  = strdup(type);
 		HASH_ADD_KEYPTR( hh, map, t->topic, strlen(t->topic), t );
 	}
-    }
+	fclose(fp);
 }
 
 void catcher(int sig)
@@ -176,6 +200,7 @@ int main(int argc, char **argv)
 	char *nodename, *username = NULL, *password = NULL;
 	char *collectdnode = NULL, **t;
 	struct udata udata;
+	char *metricsfile = METRICSFILE;
 	UT_array *topics;
 
 
@@ -183,7 +208,7 @@ int main(int argc, char **argv)
 
 	utarray_new(topics, &ut_str_icd);
 
-	while ((ch = getopt(argc, argv, "i:t:h:p:C:u:P:K:N:I:")) != EOF) {
+	while ((ch = getopt(argc, argv, "i:t:h:p:C:u:P:K:N:I:f:")) != EOF) {
 		switch (ch) {
 			case 'C':
 				ca_file = optarg;
@@ -199,8 +224,11 @@ int main(int argc, char **argv)
 			case 'p':
 				port = atoi(optarg);
 				break;
+			case 'f':
+				metricsfile = strdup(optarg);
+				break;
 			case 'I':
-				psk_identity = optarg;
+				psk_identity = strdup(optarg);
 				do_psk = TRUE;
 				break;
 			case 'N':
@@ -216,7 +244,7 @@ int main(int argc, char **argv)
 				password = strdup(optarg);
 				break;
 			case 'K':
-				psk_key = optarg;
+				psk_key = strdup(optarg);
 				do_psk = TRUE;
 				break;
 			default:
@@ -231,11 +259,11 @@ int main(int argc, char **argv)
 		usage = 1;
 
 	if (usage) {
-		fprintf(stderr, "Usage: %s [-h host] [-p port] [-C CA-cert] [-u username] [-P password] [-K psk-key] [-I psk-identity] [-s] [-N nodename] [-t topic ...]\n", progname);
+		fprintf(stderr, "Usage: %s [-h host] [-p port] [-C CA-cert] [-u username] [-P password] [-K psk-key] [-I psk-identity] [-s] [-N nodename] [-f metrics] [-t topic ...]\n", progname);
 		exit(1);
 	}
 
-	loadhashtable();
+	loadmetrics(metricsfile);
 
 	/* Determine nodename: either use the -h value of the MQTT broker
 	 * or get local nodename */
@@ -285,7 +313,7 @@ int main(int argc, char **argv)
 
 		/* FIXME */
 		// mosquitto_tls_opts_set(m, SSL_VERIFY_PEER, "tlsv1", NULL);
-		
+
 		if (tls_insecure) {
 #if LIBMOSQUITTO_VERSION_NUMBER >= 1002000
 			/* mosquitto_tls_insecure_set() requires libmosquitto 1.2. */
