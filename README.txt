@@ -13,26 +13,29 @@ SYNOPSYS
 
 DESCRIPTION
        mqtt‐sys  is  an executable program which is used with collectd(1).  It
-       subscribes to the MQTT $SYS/# topic and/or any  number  of  topics  you
+       subscribes to the MQTT $SYS/# topic and/or to any number of topics  you
        specify, and prints values to stdout for collectd to process in an exec
        plugin block.
+
+       PUTVAL tiggr/mqtt‐sys/gauge‐clients.inactive 1430914033:0.00
 
 
    MQTT subscriptions
        By default, mqtt‐sys subscribes to the $SYS/# topic tree of the	speci‐
        fied  MQTT  broker, but any number of topic subscriptions can be set up
-       using ‐t.  Whether or not the payload of a received message is actually
-       passed to collectd is defined by a metrics map which maps an MQTT topic
-       name to a metric name with a particular type (and value).  It  is  thus
-       possible  that  mqtt‐sys is subscribed to a topic but doesn’t pass that
-       to collectd.
+       using the ‐toption.  Whether or not the payload of a  received  message
+       is  actually  passed to collectd is defined by a metrics map which maps
+       an MQTT topic name to a metric name with  a  particular	type  and  its
+       numeric	value.	 It  is therefore quite possible that mqtt‐sys is sub‐
+       scribed to a topic but doesn’t pass that to collectd.  (This  is  known
+       as a configuration error.)
 
 
    Metrics map
        The MQTT topic to collectd metrics mapping is configured through a met‐
-       rics  file  you	provide.  Lines which start with # and empty lines are
+       rics file you provide. Lines which start with #	and  empty  lines  are
        ignored.  All other lines must have three white‐space separated tokens.
-       The  metric  name  which is what is passed to collectd, the type of the
+       The metric name which is what is passed to collectd, the  type  of  the
        metric (from types.db), and the MQTT topic name.
 
        temp.living	  gauge   arduino/temp/celsius
@@ -41,25 +44,25 @@ DESCRIPTION
 
 
 
-   influxdb
-       Configure InfluxDB to launch the native collect input:
+   InfluxDB
+       As  an example, we show how to configure InfluxDB to accept values from
+       collectd via the latter’s network plugin.  Configure InfluxDB to launch
+       the native collectd input:
 
        [input_plugins]
 
-	 # Configure the collectd api
 	 [input_plugins.collectd]
 	 enabled = true
-	 # address = "0.0.0.0" # If not set, is actually set to bind‐address.
+	 # address = "0.0.0.0" # defaults to bind‐address.
 	 port = 25826
 	 database = "collectd"
-	 # types.db can be found in a collectd installation or on github:
 	 # https://github.com/collectd/collectd/blob/master/src/types.db
-	 typesdb = "/usr/share/collectd/types.db" # The path to the collectd types.db file
+	 typesdb = "/usr/share/collectd/types.db"
 
 
    collectd
-       Configure collectd to send its metrics to InfluxDB  via	the  _network_
-       plugin  which  talks  to  InfluxDB.  (Compare the port numbers here and
+       Configure  collectd  to	send  its  metrics to InfluxDB via the network
+       plugin which talks to InfluxDB.	(Compare the  port  numbers  here  and
        above in InfluxDB.)
 
        LoadPlugin network
@@ -69,8 +72,9 @@ DESCRIPTION
 	   Server "127.0.0.1" "25826"
        </Plugin>
 
-       Configure collectd to load our executable  via  the  _exec_  mechanism.
-       Specify options as you need them.
+       Configure  collectd to load our executable mqtt‐sys via its exec mecha‐
+       nism. Specify mqtt‐sys options as  individual  strings  in  the	"Exec"
+       invocation.
 
        LoadPlugin exec
 
@@ -80,6 +84,9 @@ DESCRIPTION
 
 
    Testing
+       Launch  mqtt‐sys  on the command line; you should see PUTVAL statements
+       being printed. If that works configure collectd as described above.
+
        To see if whether your values are being passed to InfluxDB:
 
        select * from "hippo/mqtt‐sys/connections‐connections.1m"
@@ -92,7 +99,7 @@ OPTIONS
 
 
        −h host
-	      is  the hostname or address of the MQTT broker. Unless overriden
+	      is the hostname or address of the MQTT broker. Unless  overriden
 	      by ‐N this also sets the collectd nodename.
 
 
@@ -104,7 +111,7 @@ OPTIONS
 
 
        −f metrics
-	      is  the  path to the metrics file which defaults to "./metrics".
+	      is the path to the metrics file which defaults  to  "./metrics".
 	      If this file cannot be read, the program exits with a diagnostic
 	      message.
 
@@ -132,8 +139,8 @@ OPTIONS
 
 
        −N  nodename
-	      Overrides the collectd node name,  which	without  this  option,
-	      defaults	to  the  short	local  hostname or the value of the ‐h
+	      Overrides  the  collectd	node  name, which without this option,
+	      defaults to the short local hostname or  the  value  of  the  ‐h
 	      option
 
 
@@ -142,8 +149,7 @@ AUTHOR
 
 
 SEE ALSO
-       collectd(1),	       mosquitto(8)	       uthash(http://troydhan‐
-       son.github.io/uthash/userguide.html)
+       collectd(1), mosquitto(8), uthash(3).
 
 
 
