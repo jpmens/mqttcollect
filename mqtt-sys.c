@@ -38,6 +38,7 @@
 #include <mosquitto.h>
 #include <errno.h>
 #include "uthash.h"
+#include "utarray.h"
 
 #ifndef TRUE
 # define TRUE (1)
@@ -175,11 +176,14 @@ int main(int argc, char **argv)
 	int have_host = FALSE;
 	char *psk_key = NULL, *psk_identity = NULL;
 	char *nodename, *username = NULL, *password = NULL;
-	char *collectdnode = NULL;
+	char *collectdnode = NULL, **t;
 	struct udata udata;
+	UT_array *topics;
 
 
 	setvbuf(stdout, NULL, _IONBF, 0);
+
+	utarray_new(topics, &ut_str_icd);
 
 	while ((ch = getopt(argc, argv, "i:t:h:p:C:u:P:K:N:I:")) != EOF) {
 		switch (ch) {
@@ -203,6 +207,9 @@ int main(int argc, char **argv)
 				break;
 			case 'N':
 				collectdnode = strdup(optarg);
+				break;
+			case 't':
+				utarray_push_back(topics, &optarg);
 				break;
 			case 'u':
 				username = strdup(optarg);
@@ -304,7 +311,20 @@ int main(int argc, char **argv)
 
 	signal(SIGINT, catcher);
 
-	mosquitto_subscribe(m, NULL, "$SYS/#", 0);
+	if (utarray_len(topics) == 0) {
+		char *sys = "$SYS/#";
+
+		utarray_push_back(topics, &sys);
+	}
+
+	t = NULL;
+	while ((t = (char **)utarray_next(topics, t))) {
+		// printf("sub to %s\n", *t);
+		mosquitto_subscribe(m, NULL, *t, 0);
+	}
+
+	utarray_free(topics);
+
 	while (1) {
 		int rc = mosquitto_loop(m, -1, 1);
 		if (rc) {

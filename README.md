@@ -96,4 +96,4 @@ select * from "hippo/mqtt-sys/counter-msgs.received"
 
 ## Credits
 
-* [uthash](http://troydhanson.github.io/uthash/userguide.html)
+* [uthash & utarray](http://troydhanson.github.io/uthash/userguide.html)
