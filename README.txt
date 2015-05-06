@@ -118,20 +118,20 @@ OPTIONS
 	      to that topic. Defaults to "$SYS/#" if not specified.
 
 
-       −u  sername
+       −u  username
 	      for the MQTT connection.
 
 
-       −P  assword
+       −P  password
 	      for the MQTT connection.
 
 
-       −K  sk‐key
+       −K  psk‐key
 	      for the MQTT connection.
 
 
 
-       −N  odename
+       −N  nodename
 	      Overrides the collectd node name,  which	without  this  option,
 	      defaults	to  the  short	local  hostname or the value of the ‐h
 	      option

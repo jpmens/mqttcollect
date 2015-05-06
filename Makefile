@@ -14,3 +14,5 @@ install: mqtt-sys mqtt-sys.1
 	install -m 755 mqtt-sys $(BINDIR)/
 	install -m 644 mqtt-sys.1 $(MANDIR)/
 
+README.txt: mqtt-sys.1
+	nroff -man mqtt-sys.1 | col -b > README.txt
