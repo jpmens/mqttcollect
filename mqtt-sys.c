@@ -47,9 +47,9 @@
 # define FALSE (0)
 #endif
 
-#define PROGNAME "mqtt-sys"
-
-#define DIM(x) 	( sizeof(x) / sizeof(x[0]) )
+#define PROGNAME	"mqtt-sys"
+#define TOPIC_SYS	"$SYS/#"
+#define DIM(x)		( sizeof(x) / sizeof(x[0]) )
 
 static struct _metrics {
     const char *metric;         /* collectd metric name */
@@ -94,8 +94,6 @@ void loadhashtable()
 		HASH_ADD_KEYPTR( hh, map, t->topic, strlen(t->topic), t );
 	}
     }
-
-
 }
 
 void catcher(int sig)
@@ -233,7 +231,7 @@ int main(int argc, char **argv)
 		usage = 1;
 
 	if (usage) {
-		fprintf(stderr, "Usage: %s [-h host] [-p port] [-C CA-cert] [-u username] [-P password] [-K psk-key] [-I psk-identity] [-s] [-N nodename]\n", progname);
+		fprintf(stderr, "Usage: %s [-h host] [-p port] [-C CA-cert] [-u username] [-P password] [-K psk-key] [-I psk-identity] [-s] [-N nodename] [-t topic ...]\n", progname);
 		exit(1);
 	}
 
@@ -312,7 +310,7 @@ int main(int argc, char **argv)
 	signal(SIGINT, catcher);
 
 	if (utarray_len(topics) == 0) {
-		char *sys = "$SYS/#";
+		char *sys = TOPIC_SYS;
 
 		utarray_push_back(topics, &sys);
 	}
