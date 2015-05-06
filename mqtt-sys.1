@@ -1,0 +1,124 @@
+.\" mqtt-sys.1:
+.\"
+.\" This file is a part of the mqtt-sys package by Jan-Piet Mens
+.\"
+.TH mqtt-sys 1 "May 2015"
+.SH NAME
+mqtt-sys \- MQTT "$SYS/#"-subscriber for collectd exec
+.SH SYNOPSYS
+.B mqtt-sys [-h
+.I host
+.B ]
+.B [-p
+.I port
+.B ] [-C
+.I CA-cert
+.B ] [-u
+.I username
+.B ] [-P
+.I password
+.B ] [-K
+.I psk-key
+.B ] [-I
+.I psk-identity
+.B ] [-s] [-N
+.I nodename
+.B ] [-t
+.I topic...
+.B ]
+
+.SH DESCRIPTION
+
+.I mqtt-sys
+is an executable program which is used with
+.IR collectd (1).
+It subscribes to the MQTT $SYS/# topic and/or any number of topics
+you specify, and prints values to
+.I stdout
+for
+.I collectd
+to process in an
+.I exec
+plugin block.
+
+.SS "MQTT subscriptions"
+
+By default,
+.I mqtt-sys
+subscribes to the $SYS/# topic tree of the specified MQTT broker, but any number of topic subscrptions can be set up using
+.BR -t .
+Whether or not the payload of a received message is actually passed to
+.I collectd
+is defined by a
+.I metrics map
+which maps an MQTT topic name to a metric name with a particular type (and value). It is thus
+possible that
+.I mqtt-sys
+is subscribed to a topic but doesn't pass that to
+.IR collectd .
+
+.SS "Metrics map"
+
+The MQTT 
+.I topic
+to 
+.I collectd metric
+mapping is configured at compile time from the file
+.IR metrics.h .
+Each metric has three values: the
+.I metric name
+which is what is passed to
+.IR collectd ,
+the
+.I type
+of the metric (from 
+.IR types.db ),
+and the MQTT
+.IR "topic name" .
+.PP
+.nf
+/*
+ * 1. METRIC name which is what collectd gets. NULL if you don't want this topic.
+ * 2. TYPE from the collectd types.db (left column)
+ * 3. TOPIC as read from your MQTT broker
+ *
+ * This must be valid C source code.
+ */
+
+  { "temp.living",      "gauge",        "arduino/temp/celsius"  },
+
+  { NULL,               "gauge",        "$SYS/broker/version"   },
+  { NULL,               "gauge",        "$SYS/broker/timestamp" },
+  { "broker.uptime",    "uptime",       "$SYS/broker/uptime"    },
+  ...
+.fi
+.PP
+If a particular metric should not be handled by
+.IR mqtt-sys ,
+even though the program would receive it due to a subscription, specify
+.SM NULL
+as the metric name.
+
+.SH OPTIONS
+
+.IP -N nodename
+Overrides the
+.IR collectd
+node name, which without this option, defaults to the short local hostname or the value of the
+.B -h
+option
+
+Here is a short summary of all options accepted by \fBcdb\fR utility:
+
+.IP \fB\-0\fR
+zero-fill duplicate records in create (\fB\-c\fR) mode.
+
+.SH AUTHOR
+
+Jan-Piet Mens
+
+.SH "SEE ALSO"
+
+.IR collectd (1),
+.IR mosquitto (8)
+
