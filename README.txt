@@ -79,7 +79,7 @@ DESCRIPTION
        LoadPlugin exec
 
        <Plugin exec>
-	  Exec "mosquitto:mosquitto" "/usr/bin/mqtt‐sys" "‐u" "jjolie" "‐P" "secret" "‐f" "/etc/metrics"
+	  Exec "mosquitto:mosquitto" "/usr/bin/mqtt‐sys" "‐u" "jjolie" "‐P" "secret"
        </Plugin>
 
 
@@ -111,9 +111,9 @@ OPTIONS
 
 
        −f metrics
-	      is the path to the metrics file which defaults  to  "./metrics".
-	      If this file cannot be read, the program exits with a diagnostic
-	      message.
+	      is  the  path  to   the	metrics   file	 which	 defaults   to
+	      "/usr/local/etc/mqtt‐sys.metrics".  If this file cannot be read,
+	      the program exits with a diagnostic message.
 
 
        −I psk‐identity

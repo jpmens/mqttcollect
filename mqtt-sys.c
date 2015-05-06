@@ -51,7 +51,7 @@
 #define PROGNAME	"mqtt-sys"
 #define TOPIC_SYS	"$SYS/#"
 #define DIM(x)		( sizeof(x) / sizeof(x[0]) )
-#define METRICSFILE	"metrics"
+#define METRICSFILE	"/usr/local/etc/mqtt-sys.metrics"
 
 struct tname {
     const char *topic;          /* MQTT topic */

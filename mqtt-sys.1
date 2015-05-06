@@ -153,7 +153,7 @@ options as individual strings in the "Exec" invocation.
 LoadPlugin exec
 
 <Plugin exec>
-   Exec "mosquitto:mosquitto" "/usr/bin/mqtt-sys" "-u" "jjolie" "-P" "secret" "-f" "/etc/metrics"
+   Exec "mosquitto:mosquitto" "/usr/bin/mqtt-sys" "-u" "jjolie" "-P" "secret"
 </Plugin>
 .fi
 
@@ -192,7 +192,7 @@ gives the TCP port number for the MQTT broker; defaults to 1883.
 use insecure TLS.
 
 .IP "\fB\-f \fImetrics\fR"
-is the path to the metrics file which defaults to "./metrics". If 
+is the path to the metrics file which defaults to "/usr/local/etc/mqtt-sys.metrics". If 
 this file cannot be read, the program exits with a diagnostic
 message.
 
