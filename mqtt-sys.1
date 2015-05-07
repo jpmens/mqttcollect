@@ -100,9 +100,16 @@ and the MQTT
 .nf
 temp.living        gauge   arduino/temp/celsius
 bROKER.UPTIme      uptime  $SYS/broker/uptime
+*                  gauge   $SYS/broker/heap/maximum
 msgs.count         gauge   $SYS/broker/retained messages/count`
 .fi
 .PP
+
+As a special case, if the
+.I metric
+name is an asterisk (
+.BR * )
+the original topic name is used as the name of the metric.
 
 .SS InfluxDB
 

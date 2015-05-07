@@ -47,12 +47,16 @@ DESCRIPTION
 
        temp.living	  gauge   arduino/temp/celsius
        bROKER.UPTIme	  uptime  $SYS/broker/uptime
+       *		  gauge   $SYS/broker/heap/maximum
        msgs.count	  gauge   $SYS/broker/retained messages/count‘
 
 
+       As  a special case, if the metric name is an asterisk ( *) the original
+       topic name is used as the name of the metric.
+
 
    InfluxDB
-       As  an example, we show how to configure InfluxDB to accept values from
+       As an example, we show how to configure InfluxDB to accept values  from
        collectd via the latter’s network plugin.  Configure InfluxDB to launch
        the native collectd input:
 
@@ -68,8 +72,8 @@ DESCRIPTION
 
 
    collectd
-       Configure  collectd  to	send  its  metrics to InfluxDB via the network
-       plugin which talks to InfluxDB.	(Compare the  port  numbers  here  and
+       Configure collectd to send its metrics  to  InfluxDB  via  the  network
+       plugin  which  talks  to  InfluxDB.  (Compare the port numbers here and
        above in InfluxDB.)
 
        LoadPlugin network
@@ -79,8 +83,8 @@ DESCRIPTION
 	   Server "127.0.0.1" "25826"
        </Plugin>
 
-       Configure  collectd to load our executable mqtt‐sys via its exec mecha‐
-       nism. Specify mqtt‐sys options as  individual  strings  in  the	"Exec"
+       Configure collectd to load our executable mqtt‐sys via its exec	mecha‐
+       nism.  Specify  mqtt‐sys  options  as  individual strings in the "Exec"
        invocation.
 
        LoadPlugin exec
@@ -91,7 +95,7 @@ DESCRIPTION
 
 
    Testing
-       Launch  mqtt‐sys  on the command line; you should see PUTVAL statements
+       Launch mqtt‐sys on the command line; you should see  PUTVAL  statements
        being printed. If that works configure collectd as described above.
 
        To see if whether your values are being passed to InfluxDB:
@@ -106,7 +110,7 @@ OPTIONS
 
 
        −h host
-	      is the hostname or address of the MQTT broker. Unless  overriden
+	      is  the hostname or address of the MQTT broker. Unless overriden
 	      by ‐N this also sets the collectd nodename.
 
 
@@ -118,8 +122,8 @@ OPTIONS
 
 
        −f metrics
-	      is  the  path  to   the	metrics   file	 which	 defaults   to
-	      "/usr/local/etc/mqtt‐sys.metrics".  If this file cannot be read,
+	      is   the	 path	to   the   metrics   file  which  defaults  to
+	      "/usr/local/etc/mqtt‐sys.metrics". If this file cannot be  read,
 	      the program exits with a diagnostic message.
 
 
@@ -146,8 +150,8 @@ OPTIONS
 
 
        −N  nodename
-	      Overrides  the  collectd	node  name, which without this option,
-	      defaults to the short local hostname or  the  value  of  the  ‐h
+	      Overrides the collectd node name,  which	without  this  option,
+	      defaults	to  the  short	local  hostname or the value of the ‐h
 	      option
 
 
@@ -161,7 +165,7 @@ AUTHOR
 
 
 BUGS
-       Options (such as ‐u and ‐p) specified on the command line  are  visible
+       Options	(such  as ‐u and ‐p) specified on the command line are visible
        in the system’s process list and thus by other users.
 
 

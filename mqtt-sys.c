@@ -147,6 +147,7 @@ void cb_sub(struct mosquitto *mosq, void *userdata, const struct mosquitto_messa
 	struct udata *ud = (struct udata *)userdata;
 	time_t now;
 	double val;
+	const char *key;
 
 	/*
 	 * If the topic is not in our hash, return (i.e. ignore this message)
@@ -157,6 +158,11 @@ void cb_sub(struct mosquitto *mosq, void *userdata, const struct mosquitto_messa
 		return;
 	}
 
+	key = t->metric;
+	if (strcmp(key, "*") == 0) {
+		key = topic;
+	}
+
 	time(&now);
 	val = atof(payload);
 
@@ -164,7 +170,7 @@ void cb_sub(struct mosquitto *mosq, void *userdata, const struct mosquitto_messa
 		ud->nodename,
 		PROGNAME,
 		t->type,
-		t->metric,
+		key,
 		now,
 		val);
 
