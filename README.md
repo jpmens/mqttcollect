@@ -12,17 +12,15 @@ DESCRIPTION
 ===========
 
 *mqttcollect* is an executable program which is used with collectd(1).
-It subscribes to the MQTT \$SYS/\# topic and/or to any number of topics
-you specify, and prints values to stdout for collectd to process in an
-exec plugin block.
+It subscribes to any number of MQTT topics you specify, and prints
+values to stdout for collectd to process in an exec plugin block.
 
     PUTVAL tiggr/mqtt‐sys/gauge‐clients.inactive 1430914033:0.00
 
-*collectd* launches mqtt‐sys which connects to the configured MQTT bro‐
-ker, subscribes and waits for publishes to subscribed topics in an end‐
-less loop. If an error occurs or the program exits for whichever rea‐
-son, collectd will restart it, and collectd logs the reason it its log
-file.
+*collectd* launches *mqttcollect* which connects to the configured MQTT
+broker, subscribes and waits for publishes to subscribed topics in an
+endless loop. If an error occurs or the program exits for whichever
+reason, *collectd* will restart and log the reason in its log file.
 
 OPTIONS
 =======
@@ -93,6 +91,47 @@ metric:
 
     PUTVAL tiggr/mqttcollect/gauge-$SYS/broker/load/messages/received/1min 1431535557:61.47
 
+INFLUXDB
+========
+
+As an example, we show how to configure InfluxDB to accept values from
+*collectd* via the latter’s network plugin. Configure InfluxDB to launch
+the native *collectd* input:
+
+    [input_plugins]
+
+      [input_plugins.collectd]
+      enabled = true
+      # address = "0.0.0.0" # defaults to bind‐address.
+      port = 25826
+      database = "collectd"
+      # https://github.com/collectd/collectd/blob/master/src/types.db
+      typesdb = "/usr/share/collectd/types.db"
+
+COLLECTD
+========
+
+Configure *collectd* to send its metrics to InfluxDB via the network
+plugin which talks to InfluxDB. (Compare the port numbers here and above
+in InfluxDB.)
+
+    LoadPlugin network
+
+    <Plugin "network">
+       # influxdb
+       Server "127.0.0.1" "25826"
+    </Plugin>
+
+Configure *collectd* to load our executable *mqttcollect* via its exec
+mechanism. Specify *mqttcollect*'s options as individual strings in the
+`Exec` invocation.
+
+    LoadPlugin exec
+
+    <Plugin exec>
+       Exec "mosquitto:mosquitto" "/usr/bin/mqttcollect" "‐f" "/etc/my.ini"
+    </Plugin>
+
 BUGS
 ====
 
@@ -120,6 +159,7 @@ INSTALLATION
 SEE ALSO
 ========
 
+-   `collectd`(1).
 -   <https://github.com/jpmens/mqttwarn>
 
 AUTHOR

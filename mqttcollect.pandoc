@@ -88,6 +88,45 @@ Example `3` subscribes to the single topic and does *not* rename the metric:
 
 	PUTVAL tiggr/mqttcollect/gauge-$SYS/broker/load/messages/received/1min 1431535557:61.47
 
+# INFLUXDB
+
+As an example, we show how to configure InfluxDB to accept values from
+_collectd_ via the latter’s network plugin. Configure InfluxDB to launch the
+native _collectd_ input:
+
+	[input_plugins]
+
+	  [input_plugins.collectd]
+	  enabled = true
+	  # address = "0.0.0.0" # defaults to bind‐address.
+	  port = 25826
+	  database = "collectd"
+	  # https://github.com/collectd/collectd/blob/master/src/types.db
+	  typesdb = "/usr/share/collectd/types.db"
+
+# COLLECTD
+
+Configure _collectd_ to send its metrics to InfluxDB via the network plugin
+which talks to InfluxDB. (Compare the port numbers here and above in
+InfluxDB.)
+
+	LoadPlugin network
+
+	<Plugin "network">
+	   # influxdb
+	   Server "127.0.0.1" "25826"
+	</Plugin>
+
+Configure _collectd_ to load our executable *mqttcollect* via its exec
+mechanism. Specify *mqttcollect*'s options as individual strings in the
+`Exec` invocation.
+
+	LoadPlugin exec
+
+	<Plugin exec>
+	   Exec "mosquitto:mosquitto" "/usr/bin/mqttcollect" "‐f" "/etc/my.ini"
+	</Plugin>
+
 # BUGS
 
 Yes.
