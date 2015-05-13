@@ -1,0 +1,205 @@
+.TH "MQTTCOLLECT" "1" "May 13, 2015" "User Manuals" ""
+.SH NAME
+.PP
+mqttcollect \- MQTT\-based Exec\-plugin for collectd
+.SH SYNOPSIS
+.PP
+mqttcollect [\-v ] [\-f \f[I]file\f[]]
+.SH DESCRIPTION
+.PP
+\f[I]mqttcollect\f[] is an executable program which is used with
+collectd(1).
+It subscribes to any number of MQTT topics you specify, and prints
+values to stdout for collectd to process in an exec plugin block.
+.IP
+.nf
+\f[C]
+PUTVAL\ tiggr/mqtt‐sys/gauge‐clients.inactive\ 1430914033:0.00
+\f[]
+.fi
+.PP
+\f[I]collectd\f[] launches \f[I]mqttcollect\f[] which connects to the
+configured MQTT broker, subscribes and waits for publishes to subscribed
+topics in an endless loop.
+If an error occurs or the program exits for whichever reason,
+\f[I]collectd\f[] will restart and log the reason in its log file.
+.PP
+\f[I]mqttcollect\f[] supports TLS connections to the MQTT broker,
+username/password authentication, and TLS\-PSK, all configured via its
+configuration file.
+.SH OPTIONS
+.PP
+\f[I]mqttcollect\f[] understands the following options.
+.TP
+.B \-f \f[I]file\f[]
+Specify an ini\-type configuration file (see below), which defaults to
+\f[C]/usr/local/etc/mqttcollect.ini\f[].
+.RS
+.RE
+.TP
+.B \-v
+Verbose.
+.RS
+.RE
+.SH CONFIGURATION
+.PP
+\f[I]mqttcollect\f[] requires a configuration file to operate.
+This ini\-type file must have a \f[C][defaults]\f[] section in which
+general program parameters are configured, and it will have any number
+of additional sections specifying the MQTT topics it is to subscribe to.
+For the defaults section, please consult the example file provided with
+the source code for a list of allowed settings.
+.PP
+Within a \f[I]topic\f[] section, metrics collected by \f[I]collectd\f[]
+are specified.
+.IP
+.nf
+\f[C]
+[defaults]
+host\ =\ localhost
+port\ =\ 1883
+
+;\ (1)\ subscribe\ to\ a\ wildcard\ and\ produce\ three\ metrics\ per\ subscription.
+;\ the\ metric\ names\ are\ interpolated\ with\ `tid\[aq]\ from\ the\ JSON\ message
+;\ payload,\ and\ the\ values\ of\ each\ metric\ are\ obtained\ from\ the
+;\ JSON\ element\ behind\ the\ `<\[aq]
+
+[owntracks/+/+]
+gauge\ =\ vehicle/{tid}/speed<vel
+gauge\ =\ vehicle/{tid}/altitude<alt
+counter\ =\ vehicle/{tid}/odometer<trip
+
+;\ (2)\ subscribe\ to\ one\ topic\ and\ rename\ the\ metric
+
+[$SYS/broker/clients/inactive]
+gauge\ =\ clients.inactive
+
+;\ (3)\ subscribe\ to\ one\ topic\ and\ KEEP\ its\ name
+
+[$SYS/broker/load/messages/received/1min]
+gauge\ =\ *
+\f[]
+.fi
+.PP
+Example \f[C]1\f[] is complex.
+\f[I]mqttcollect\f[] will subscribe to the wildcarded
+\f[C]owntracks/+/+\f[] topic, and for each message received on that
+topic, will produce three metrics.
+The special character \f[C]<\f[] in the line indicates the MQTT message
+payload is expected to be JSON.
+Each of the metric names will have the JSON element \f[C]tid\f[] from
+the payload interpolated into their names, and the actual value of the
+metric will be obtained (\f[C]<\f[]) from the specified JSON element
+(\f[C]vel\f[], \f[C]alt\f[], and \f[C]trip\f[] respectively).
+Using this configuration, and assuming a payload with this JSON
+.IP
+.nf
+\f[C]
+{"tid":\ "BB",\ "vel":\ 62,\ "trip":\ 8246531,\ "alt":\ 48}
+\f[]
+.fi
+.PP
+\f[I]mqttcollect\f[] could produce the following three metrics for
+\f[I]collectd\f[]:
+.IP
+.nf
+\f[C]
+PUTVAL\ tiggr/mqttcollect/gauge\-vehicle/BB/speed\ 1431535440:62.00
+PUTVAL\ tiggr/mqttcollect/gauge\-vehicle/BB/altitude\ 1431535440:48.00
+PUTVAL\ tiggr/mqttcollect/counter\-vehicle/BB/odometer\ 1431535440:8246531.00
+\f[]
+.fi
+.PP
+In example \f[C]2\f[], the program will subscribe to a single topic, and
+will produce a metric renamed to \f[C]clients.inactive\f[].
+.IP
+.nf
+\f[C]
+PUTVAL\ tiggr/mqttcollect/gauge\-clients.inactive\ 1431535434:1.00
+\f[]
+.fi
+.PP
+Example \f[C]3\f[] subscribes to the single topic and does \f[I]not\f[]
+rename the metric:
+.IP
+.nf
+\f[C]
+PUTVAL\ tiggr/mqttcollect/gauge\-$SYS/broker/load/messages/received/1min\ 1431535557:61.47
+\f[]
+.fi
+.SH INFLUXDB
+.PP
+As an example, we show how to configure InfluxDB to accept values from
+\f[I]collectd\f[] via the latter's network plugin.
+Configure InfluxDB to launch the native \f[I]collectd\f[] input:
+.IP
+.nf
+\f[C]
+[input_plugins]
+
+\ \ [input_plugins.collectd]
+\ \ enabled\ =\ true
+\ \ #\ address\ =\ "0.0.0.0"\ #\ defaults\ to\ bind‐address.
+\ \ port\ =\ 25826
+\ \ database\ =\ "collectd"
+\ \ #\ https://github.com/collectd/collectd/blob/master/src/types.db
+\ \ typesdb\ =\ "/usr/share/collectd/types.db"
+\f[]
+.fi
+.SH COLLECTD
+.PP
+Configure \f[I]collectd\f[] to send its metrics to InfluxDB via the
+network plugin which talks to InfluxDB.
+(Compare the port numbers here and above in InfluxDB.)
+.IP
+.nf
+\f[C]
+LoadPlugin\ network
+
+<Plugin\ "network">
+\ \ \ #\ influxdb
+\ \ \ Server\ "127.0.0.1"\ "25826"
+</Plugin>
+\f[]
+.fi
+.PP
+Configure \f[I]collectd\f[] to load our executable \f[I]mqttcollect\f[]
+via its exec mechanism.
+Specify \f[I]mqttcollect\f[]\[aq]s options as individual strings in the
+\f[C]Exec\f[] invocation.
+.IP
+.nf
+\f[C]
+LoadPlugin\ exec
+
+<Plugin\ exec>
+\ \ \ Exec\ "mosquitto:mosquitto"\ "/usr/bin/mqttcollect"\ "‐f"\ "/etc/my.ini"
+</Plugin>
+\f[]
+.fi
+.SH BUGS
+.PP
+Yes.
+.SH AVAILABILITY
+.PP
+<https://github.com/jpmens/mqttcollect>
+.SH CREDITS
+.IP \[bu] 2
+This program uses \f[I]libmosquitto\f[], a library provided by the
+Mosquitto project <http://mosquitto.org> as well as some of the
+excellent include files provided by
+<http://troydhanson.github.io/uthash>
+.SH INSTALLATION
+.IP \[bu] 2
+Obtain the source code for \f[I]mqttcollect\f[], adjust the
+\f[C]Makefile\f[] and run \f[C]make\f[].
+.SH SEE ALSO
+.IP \[bu] 2
+\f[C]collectd\f[](1).
+.IP \[bu] 2
+<https://github.com/jpmens/mqttwarn>
+.SH AUTHOR
+.PP
+Jan\-Piet Mens <http://jpmens.net>
+.SH AUTHORS
+Jan\-Piet Mens.
