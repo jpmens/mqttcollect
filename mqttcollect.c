@@ -50,10 +50,8 @@
 # define FALSE (0)
 #endif
 
-#define PROGNAME	"mqtt-sys"
-#define TOPIC_SYS	"$SYS/#"
-#define DIM(x)		( sizeof(x) / sizeof(x[0]) )
-#define CONFIGFILE	"/usr/local/etc/mqtt-sys.ini"
+#define PROGNAME	"mqttcollect"
+#define CONFIGFILE	"/usr/local/etc/mqttcollect.ini"
 #define SECTION  	"defaults"
 
 typedef struct {
