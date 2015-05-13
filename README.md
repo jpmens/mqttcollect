@@ -74,10 +74,14 @@ the MQTT message payload is expected to be JSON. Each of the metric
 names will have the JSON element `tid` from the payload interpolated
 into their names, and the actual value of the metric will be obtained
 (`<`) from the specified JSON element (`vel`, `alt`, and `trip`
-respectively). Using this configuration, *mqttcollect* could produce the
-following three metrics for *collectd*:
+respectively). Using this configuration, and assuming a payload with
+this JSON
 
-    PUTVAL tiggr/mqttcollect/gauge-vehicle/BB/speed 1431535440:2.00
+    {"tid": "BB", "vel": 62, "trip": 8246531, "alt": 48}
+
+*mqttcollect* could produce the following three metrics for *collectd*:
+
+    PUTVAL tiggr/mqttcollect/gauge-vehicle/BB/speed 1431535440:62.00
     PUTVAL tiggr/mqttcollect/gauge-vehicle/BB/altitude 1431535440:48.00
     PUTVAL tiggr/mqttcollect/counter-vehicle/BB/odometer 1431535440:8246531.00
 
