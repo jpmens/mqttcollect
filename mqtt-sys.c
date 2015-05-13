@@ -39,7 +39,9 @@
 #include <errno.h>
 #include <ctype.h>
 #include "uthash.h"
-#include "utarray.h"
+#include "utstring.h"
+#include "json.h"
+#include "ini.h"	/* https://github.com/benhoyt/inih */
 
 #ifndef TRUE
 # define TRUE (1)
@@ -51,71 +53,161 @@
 #define PROGNAME	"mqtt-sys"
 #define TOPIC_SYS	"$SYS/#"
 #define DIM(x)		( sizeof(x) / sizeof(x[0]) )
-#define METRICSFILE	"/usr/local/etc/mqtt-sys.metrics"
+#define CONFIGFILE	"/usr/local/etc/mqtt-sys.ini"
+#define SECTION  	"defaults"
 
-struct tname {
+typedef struct {
+    const char *host;
+    const char *nodename;		/* for collectd; defaults to short uname */
+    int port;
+    const char *username;
+    const char *password;
+    const char *psk_key;
+    const char *psk_identity;
+    const char *ca_file;
+} config;
+
+static config cf = {
+	.host		= "localhost",
+	.port		= 1883
+};
+
+/*
+ * A hash of metrics with their name (metric), type (e.g. gauge) and
+ * optional JSON element.
+ */
+
+struct metrics_h {
+	const char *metric;
+	const char *type;
+	const char *element;	/* If NULL, not JSON */
+	UT_hash_handle hh;
+};
+
+struct topics_h {
     const char *topic;          /* MQTT topic */
-    const char *metric;         /* metric name for collectd */
-    const char *type;           /* metric type for collectd */
+    struct metrics_h *mh;	/* hash of metrics to produce per topic */
     UT_hash_handle hh;
 };
-static struct tname *map = NULL;
+static struct topics_h *topics_h = NULL;
+
+static int verbose = FALSE;
+
+
+#define _eq(n) (strcmp(key, n) == 0)
+static int handler(void *cf, const char *section, const char *key, const char *val)
+{
+	config *c = (config *)cf;
+	struct topics_h *th;
+	struct metrics_h *mh;
+	static UT_string *elem, *metric;
+	char *p;
+
+	utstring_renew(elem);
+	utstring_renew(metric);
+
+	// printf("section=%s  >%s<-->%s\n", section, key, val);
+
+	if (!strcmp(section, SECTION)) {
+
+		if (_eq("host"))
+			c->host = strdup(val);
+		if (_eq("username"))
+			c->username = strdup(val);
+		if (_eq("password"))
+			c->password = strdup(val);
+		if (_eq("psk_key"))
+			c->psk_key = strdup(val);
+		if (_eq("psk_identity"))
+			c->psk_identity = strdup(val);
+		if (_eq("ca_file"))
+			c->ca_file = strdup(val);
+		if (_eq("nodename"))
+			c->nodename = strdup(val);
+
+		if (_eq("port"))
+			c->port = atoi(val);
+
+		return (1);
+	}
+
+	/*
+	 * The Section name is MQTT topic. If we've not yet seen this, add
+	 * it to the hash, otherwise, push the new metric into the it's
+	 * array.
+	 * The entry's key is the metric type (gauge, counter)
+	 *
+	 *  [owntracks/gw/+]	<-- section => topic
+	 *  gauge = cars/{tid}/speed@vel
+	 *
+	 *     key: "gauge"
+	 *     val: "cars/{tid}/speed@vel"
+	 *           ^^^^^^^^^^^^^^^^ ^^^
+	 *              metric        elem
+	 *
+	 *  [$SYS/broker/uptime]
+	 *  counter = *
+	 */
+
+	if ((p = strchr(val, '<')) != NULL) {		/* "<vel" */
+		utstring_printf(elem, "%s", p + 1);	/* "vel"  */
+		*p = 0;
+		utstring_printf(metric, "%s", val);
+	} else {
+		// utstring_printf(elem, "%s", val);
+		utstring_clear(elem);
+
+		if (strcmp(val, "*") == 0) {		/* copy section/topic name to metric */
+			utstring_printf(metric, "%s", section);
+		} else {
+			utstring_printf(metric, "%s", val);
+		}
+	}
+
+	HASH_FIND_STR(topics_h, section, th);
+	if (!th) {
+		th = (struct topics_h *)malloc(sizeof(struct topics_h));
+		th->topic = strdup(section);
+
+		HASH_ADD_KEYPTR( hh, topics_h, th->topic, strlen(th->topic), th );
+
+		/* experiment: add to metric_h with this hash */
+
+		th->mh = NULL;
+		mh = (struct metrics_h *)malloc(sizeof(struct metrics_h));
+		mh->metric = strdup(utstring_body(metric));
+		mh->type = strdup(key);
+		mh->element = utstring_len(elem) ? strdup(utstring_body(elem)) : NULL;
+		HASH_ADD_KEYPTR( hh, th->mh, mh->metric, strlen(mh->metric), mh );
+
+
+	} else {
+		HASH_FIND_STR(th->mh, val, mh);
+		if (mh) {
+			puts("PANIC!!!");
+		} else {
+			mh = (struct metrics_h *)malloc(sizeof(struct metrics_h));
+			mh->metric = strdup(utstring_body(metric));
+			mh->type = strdup(key);
+			mh->element = utstring_len(elem) ? strdup(utstring_body(elem)) : NULL;
+			HASH_ADD_KEYPTR( hh, th->mh, mh->metric, strlen(mh->metric), mh );
+		}
+
+	}
+
+	return (1);
+}
+
 
 static struct mosquitto *m = NULL;
+
+/*
+ * User data for Mosquitto
+ */
 
 struct udata {
 	char *nodename;
 };
-
-/*
- * Load the uthash table with topic -> metric
- */
-
-void loadmetrics(char *filename)
-{
-	struct tname *t;
-	FILE *fp;
-	char buf[8192], *metric, *type, *topic;
-
-	if ((fp = fopen(filename, "r")) == NULL) {
-		fprintf(stderr, "%s: cannot open metrics file %s: %s\n",
-			PROGNAME, filename, strerror(errno));
-		exit(2);
-	}
-
-	while (fgets(buf, sizeof(buf), fp) != NULL) {
-		char *bp;
-
-		if (*buf == '#')
-			continue;
-
-		for (bp = buf + strlen(buf) - 1; bp >= buf; bp--) {
-			if (isspace(*bp))
-				*bp = 0;
-			else
-				break;
-		}
-		if (*buf == 0)
-			continue;
-
-		if ((metric = strtok(buf, " \t")) == NULL)
-			continue;
-		if ((type = strtok(NULL, " \t")) == NULL)
-			continue;
-
-		topic = type + strlen(type) + 1;	// skip over 0
-		for (; isspace(*topic); topic++) {	// strip leading white
-			;
-		}
-
-		t = (struct tname *)malloc(sizeof(struct tname));
-		t->topic  = strdup(topic);
-		t->metric = strdup(metric);
-		t->type	  = strdup(type);
-		HASH_ADD_KEYPTR( hh, map, t->topic, strlen(t->topic), t );
-	}
-	fclose(fp);
-}
 
 void catcher(int sig)
 {
@@ -139,41 +231,160 @@ void fatal(void)
 	exit(1);
 }
 
+double json_object(JsonNode *json, const char *element)
+{
+	JsonNode *m;
+	double value = 0.0L;
+
+	if ((m = json_find_member(json, element)) == NULL)
+		return (value);
+
+	if (m && m->tag == JSON_STRING) {
+		value = atof(m->string_);
+	} else if (m && m->tag == JSON_NUMBER) {
+		value = m->number_;
+	}
+
+	return (value);
+}
+
+/*
+ * Expand the content of `line', which may have one or more {token}
+ * in it into `res', using the decoded JSON at `json'.
+ */
+
+void xexpand(UT_string *res, const char *line, JsonNode *json)
+{
+    JsonNode *m;
+    static UT_string *token;
+    const char *lp = line;
+
+    utstring_renew(token);
+
+    for (lp = line; lp && *lp; lp++ ) {
+        if (*lp == '\\') {
+            utstring_printf(res, "%c", *++lp);
+            continue;
+        }
+        if (*lp != '{') {
+            utstring_printf(res, "%c", *lp);
+            continue;
+        }
+
+        utstring_renew(token);
+        if (*++lp == '}') { /* skip over this { */
+            /* Empty token; push back */
+            utstring_printf(res, "%c", *lp);
+            continue;
+        }
+
+        do {
+            utstring_printf(token, "%c", *lp++);
+        } while (*lp && *lp != '}');
+	// printf("TOKEN=[%s]\n", utstring_body(token));
+
+        // printf("LAST=%d\n", *lp);
+        if (*lp != '}') {
+            /* Push back, incl leading brace */
+            utstring_printf(res, "{%s", utstring_body(token));
+            break;
+        }
+
+
+	/* See if `token' is a JSON element, and if so, interpolate
+	 * its value. If token is not in JSON, stuff it back to
+	 * indicate the error.
+	 */
+
+	if ((m = json_find_member(json, utstring_body(token))) != NULL) {
+		if (m && m->tag == JSON_STRING) {
+			utstring_printf(res, "%s", m->string_);
+		} else if (m && m->tag == JSON_NUMBER) {
+			utstring_printf(res, "%lf", m->number_);
+		} else {
+			utstring_printf(res, "FIXME-JSON");
+		}
+	} else {
+            /* stuff token and its braces back into result */
+            utstring_printf(res, "{%s}", utstring_body(token));
+        }
+    }
+}
+
+
+
 void cb_sub(struct mosquitto *mosq, void *userdata, const struct mosquitto_message *msg)
 {
 	char *topic = msg->topic;
 	char *payload = msg->payload;
-	struct tname *t;
 	struct udata *ud = (struct udata *)userdata;
 	time_t now;
-	double val;
-	const char *key;
+	struct topics_h *th, *currth = NULL;
+	bool bf;
+	struct metrics_h *mh;
+
 
 	/*
-	 * If the topic is not in our hash, return (i.e. ignore this message)
+	 * We can't try to find topic in our hash, because this may be the
+	 * result of a wildcard subscription. Instead, see if one of the
+	 * topics in hash matches the subscription. Slower, but I can't
+	 * help that.
 	 */
 
-	HASH_FIND_STR(map, topic, t);
-	if (!t) {
+	for (th = topics_h; th != NULL; th = th->hh.next) {
+		if (mosquitto_topic_matches_sub(th->topic, topic, &bf) == MOSQ_ERR_SUCCESS) {
+			if (bf == 1) {
+				currth = th;
+				break;
+			}
+		}
+	}
+
+	if (currth == NULL) {
+		puts("HUH? PANIC? topic not found");
 		return;
 	}
 
-	key = t->metric;
-	if (strcmp(key, "*") == 0) {
-		key = topic;
-	}
-
 	time(&now);
-	val = atof(payload);
 
-	printf("PUTVAL %s/%s/%s-%s %ld:%.2lf\n",
-		ud->nodename,
-		PROGNAME,
-		t->type,
-		key,
-		now,
-		val);
+	/*
+	 * For each of the metrics configured for this subscription, do the
+	 * "needful".
+	 * If `element' in metric is NULL, use the original payload; otherwise
+	 * it's the name of a JSON element in the (assumed) JSON payload.
+	 */
 
+	for (mh = currth->mh; mh != NULL; mh = mh->hh.next) {
+		JsonNode *json;
+		double number = -1.0L;
+		static UT_string *metric_name;
+
+		utstring_renew(metric_name);
+
+		if (verbose)
+			fprintf(stderr, "     =====[ %s ] (%s) %s\n", mh->metric, mh->type, mh->element);
+
+		if (mh->element != NULL) {	/* JSON */
+			if ((json = json_decode(payload)) == NULL) {
+				continue;
+			}
+			utstring_clear(metric_name);
+			xexpand(metric_name, mh->metric, json);
+
+			number = json_object(json, mh->element);
+
+		} else {
+			utstring_printf(metric_name, "%s", mh->metric);
+			number = atof(payload);
+		}
+		printf("PUTVAL %s/%s/%s-%s %ld:%.2lf\n",
+			ud->nodename,
+			PROGNAME,
+			mh->type,
+			utstring_body(metric_name),
+			now,
+			number);
+	}
 }
 
 void cb_disconnect(struct mosquitto *mosq, void *userdata, int rc)
@@ -193,64 +404,26 @@ int main(int argc, char **argv)
 	int usage = 0, rc;
 	struct utsname uts;
 	char clientid[80];
-	char *host = "localhost", *ca_file;
-	int port = 1883, keepalive = 60;
-	int do_tls = FALSE, tls_insecure = FALSE;
-	int do_psk = FALSE;
-	int have_host = FALSE;
-	char *psk_key = NULL, *psk_identity = NULL;
-	char *nodename, *username = NULL, *password = NULL;
-	char *collectdnode = NULL, **t;
+	int keepalive = 60;
+	int tls_insecure = FALSE;
 	struct udata udata;
-	char *metricsfile = METRICSFILE;
-	UT_array *topics;
+	char *configfile = CONFIGFILE;
+	struct topics_h *th;
 
 
 	setvbuf(stdout, NULL, _IONBF, 0);
 
-	utarray_new(topics, &ut_str_icd);
-
-	username = getenv("MQTTSYSUSER");
-	password = getenv("MQTTSYSPASS");
-
-	while ((ch = getopt(argc, argv, "t:h:p:C:u:P:K:N:I:f:")) != EOF) {
+	while ((ch = getopt(argc, argv, "vs:f:")) != EOF) {
 		switch (ch) {
-			case 'C':
-				ca_file = optarg;
-				do_tls = TRUE;
+			case 'v':
+				verbose = TRUE;
 				break;
-			case 'h':
-				host = strdup(optarg);
-				have_host = TRUE;
-				break;
+
 			case 's':
 				tls_insecure = TRUE;
 				break;
-			case 'p':
-				port = atoi(optarg);
-				break;
 			case 'f':
-				metricsfile = strdup(optarg);
-				break;
-			case 'I':
-				psk_identity = strdup(optarg);
-				do_psk = TRUE;
-				break;
-			case 'N':
-				collectdnode = strdup(optarg);
-				break;
-			case 't':
-				utarray_push_back(topics, &optarg);
-				break;
-			case 'u':
-				username = strdup(optarg);
-				break;
-			case 'P':
-				password = strdup(optarg);
-				break;
-			case 'K':
-				psk_key = strdup(optarg);
-				do_psk = TRUE;
+				configfile = strdup(optarg);
 				break;
 			default:
 				usage = 1;
@@ -258,41 +431,36 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (do_tls && do_psk)
-		usage = 1;
-	if (do_psk && (psk_key == NULL || psk_identity == NULL))
-		usage = 1;
 
-	if (usage) {
-		fprintf(stderr, "Usage: %s [-h host] [-p port] [-C CA-cert] [-u username] [-P password] [-K psk-key] [-I psk-identity] [-s] [-N nodename] [-f metrics] [-t topic ...]\n", progname);
-		exit(1);
+
+	if (ini_parse(configfile, handler, &cf) < 0) {
+		fprintf(stderr, "%s: Can't load '%s'\n", PROGNAME, configfile);
+		return 1;
 	}
 
-	loadmetrics(metricsfile);
+	if (usage) {
+		fprintf(stderr, "Usage: %s [-v] [-s] [-f configfile]\n", progname);
+		exit(1);
+	}
 
 	/* Determine nodename: either use the -h value of the MQTT broker
 	 * or get local nodename */
 
-	if (have_host) {
-		nodename = host;
-	} else {
-
+	if (cf.nodename == NULL) {
 		if (uname(&uts) == 0) {
 			char *p;
-			nodename = strdup(uts.nodename);
+			cf.nodename = strdup(uts.nodename);
 
-			if ((p = strchr(nodename, '.')) != NULL)
+			if ((p = strchr(cf.nodename, '.')) != NULL)
 				*p = 0;
 		} else {
-			nodename = strdup("unknown");
+			cf.nodename = strdup("unknown");
 		}
 	}
 
-	nodename = (collectdnode) ? collectdnode : nodename;
-
 	mosquitto_lib_init();
 
-	udata.nodename = nodename;
+	udata.nodename = (char *)cf.nodename;
 
 	sprintf(clientid, "%s-%d", PROGNAME, getpid());
 	if ((m = mosquitto_new(clientid, TRUE, (void *)&udata)) == NULL) {
@@ -300,15 +468,15 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	if (do_psk) {
-		rc = mosquitto_tls_psk_set(m, psk_key, psk_identity,NULL);
+	if (cf.psk_key && cf.psk_identity) {
+		rc = mosquitto_tls_psk_set(m, cf.psk_key, cf.psk_identity,NULL);
 		if (rc != MOSQ_ERR_SUCCESS) {
 			fprintf(stderr, "Cannot set TLS PSK: %s\n",
 				mosquitto_strerror(rc));
 			exit(3);
 		}
-	} else if (do_tls) {
-		rc = mosquitto_tls_set(m, ca_file, NULL, NULL, NULL, NULL);
+	} else if (cf.ca_file) {
+		rc = mosquitto_tls_set(m, cf.ca_file, NULL, NULL, NULL, NULL);
 		if (rc != MOSQ_ERR_SUCCESS) {
 			fprintf(stderr, "Cannot set TLS PSK: %s\n",
 				mosquitto_strerror(rc));
@@ -326,15 +494,15 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (username) {
-		mosquitto_username_pw_set(m, username, password);
+	if (cf.username) {
+		mosquitto_username_pw_set(m, cf.username, cf.password);
 	}
 
 	mosquitto_message_callback_set(m, cb_sub);
 	mosquitto_disconnect_callback_set(m, cb_disconnect);
 
-	if ((rc = mosquitto_connect(m, host, port, keepalive)) != MOSQ_ERR_SUCCESS) {
-		fprintf(stderr, "Unable to connect to %s:%d: %s\n", host, port,
+	if ((rc = mosquitto_connect(m, cf.host, cf.port, keepalive)) != MOSQ_ERR_SUCCESS) {
+		fprintf(stderr, "Unable to connect to %s:%d: %s\n", cf.host, cf.port,
 			mosquitto_strerror(rc));
 		perror("");
 		exit(2);
@@ -343,22 +511,14 @@ int main(int argc, char **argv)
 	signal(SIGINT, catcher);
 
 	/*
-	 * Set up subscriptions to all topics specified as `-t'; if none
-	 * were, then configure default $SYS/#
+	 * Set up an MQTT subscription for each of the topics we have
+	 * in the topics hash.
 	 */
 
-	if (utarray_len(topics) == 0) {
-		char *sys = TOPIC_SYS;
-
-		utarray_push_back(topics, &sys);
+	for (th = topics_h; th != NULL; th = th->hh.next) {
+		// fprintf(stderr, "%s: subscribe to %s\n", PROGNAME, th->topic);
+		mosquitto_subscribe(m, NULL, th->topic, 0);
 	}
-
-	t = NULL;
-	while ((t = (char **)utarray_next(topics, t))) {
-		mosquitto_subscribe(m, NULL, *t, 0);
-	}
-
-	utarray_free(topics);
 
 	while (1) {
 		int rc = mosquitto_loop(m, -1, 1);
@@ -368,9 +528,13 @@ int main(int argc, char **argv)
 		}
 	}
 
-	/* Unreched */
+	/* Unreached */
 
-	free(nodename);
+	/*
+	 * There's a tonne of memory we ought to free (topics_h, etc) but
+	 * we don't get here, so nobody will notice.
+	 */
+
 
 	mosquitto_disconnect(m);
 	mosquitto_lib_cleanup();

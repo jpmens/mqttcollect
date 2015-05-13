@@ -1,0 +1,39 @@
+; Configuration for mqtt-sys
+; Comments are introduced with ; also inline after white space
+; White space around '=' is stripped
+
+[defaults]
+host = localhost
+port = 1883
+; username = jjolie
+; password = s1c#ret
+; psk_key = 
+; psk_identity = 
+; ca_file = 
+; nodename = foob
+
+; Examples
+; password = s1ckr3t		; a password
+; password = s1c;k r3t          ; a password with a semicolon and a space in it
+; password = s1c  r3t           ; a password with two spaces in it!
+; password = s1c#ret		; a password with a hash symbol
+
+; subscribe to a wildcard and produce three metrics per subscription.
+; the metric names are interpolated with `tid' from the JSON message
+; payload, and the values of each metric are obtained from the
+; JSON element behind the `<'
+
+[owntracks/+/+]
+gauge = vehicle/{tid}/speed<vel
+gauge = vehicle/{tid}/altitude<alt
+counter = vehicle/{tid}/odometer<trip
+
+; subscribe to one topic and rename the metric
+
+[$SYS/broker/clients/inactive]
+gauge = clients.inactive
+
+; subscribe to one topic and KEEP its name
+
+[$SYS/broker/load/messages/received/1min]
+gauge = *

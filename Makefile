@@ -7,8 +7,11 @@ LDFLAGS=-lmosquitto
 
 all: mqtt-sys
 
-mqtt-sys: mqtt-sys.c uthash.h
-	$(CC) $(CFLAGS) -o mqtt-sys mqtt-sys.c $(LDFLAGS)
+mqtt-sys: mqtt-sys.c uthash.h json.o utstring.h ini.o
+	$(CC) $(CFLAGS) -o mqtt-sys mqtt-sys.c json.o ini.o $(LDFLAGS)
+
+json.o: json.c json.h
+ini.o: ini.c ini.h
 
 install: mqtt-sys mqtt-sys.1
 	install -m 755 mqtt-sys $(BINDIR)/
