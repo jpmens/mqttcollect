@@ -17,6 +17,12 @@ install: mqttcollect mqttcollect.1
 	install -m 755 mqttcollect $(BINDIR)/
 	install -m 644 mqttcollect.1 $(MANDIR)/
 
+clean:
+	rm -f *.o
+
+clobber: clean
+	rm -f mqttcollect
+
 README.md: mqttcollect.pandoc
 	pandoc -w markdown mqttcollect.pandoc -o README.md
 
