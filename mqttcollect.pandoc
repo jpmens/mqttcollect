@@ -23,13 +23,15 @@ subscribes and waits for publishes to subscribed topics in an endless loop.
 If an error occurs or the program exits for whichever reason, _collectd_
 will restart and log the reason in its log file.
 
+*mqttcollect* supports TLS connections to the MQTT broker, username/password
+authentication, and TLS-PSK, all configured via its configuration file.
+
 # OPTIONS
 
 *mqttcollect* understands the following options. 
 
 -f *file*
-:   Specify an ini-type configuration file (see below), which defaults to
-    `/usr/local/etc/mqttcollect.ini`.
+:   Specify an ini-type configuration file (see below), which defaults to `/usr/local/etc/mqttcollect.ini`.
 -v
 :   Verbose. 
 
@@ -39,7 +41,9 @@ will restart and log the reason in its log file.
 *mqttcollect* requires a configuration file to operate. This ini-type file
 must have a `[defaults]` section in which general program parameters are
 configured, and it will have any number of additional sections specifying
-the MQTT topics it is to subscribe to.
+the MQTT topics it is to subscribe to. For the defaults section, please
+consult the example file provided with the source code for a list of allowed
+settings.
 
 Within a _topic_ section, metrics collected by _collectd_ are specified.
 

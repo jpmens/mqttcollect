@@ -22,6 +22,10 @@ broker, subscribes and waits for publishes to subscribed topics in an
 endless loop. If an error occurs or the program exits for whichever
 reason, *collectd* will restart and log the reason in its log file.
 
+*mqttcollect* supports TLS connections to the MQTT broker,
+username/password authentication, and TLS-PSK, all configured via its
+configuration file.
+
 OPTIONS
 =======
 
@@ -39,7 +43,9 @@ CONFIGURATION
 *mqttcollect* requires a configuration file to operate. This ini-type
 file must have a `[defaults]` section in which general program
 parameters are configured, and it will have any number of additional
-sections specifying the MQTT topics it is to subscribe to.
+sections specifying the MQTT topics it is to subscribe to. For the
+defaults section, please consult the example file provided with the
+source code for a list of allowed settings.
 
 Within a *topic* section, metrics collected by *collectd* are specified.
 
