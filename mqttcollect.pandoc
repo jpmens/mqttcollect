@@ -12,17 +12,16 @@ mqttcollect [-v ] [-f _file_]
 
 # DESCRIPTION
 
-*mqttcollect* is  an executable program which is used with collectd(1).  It
-subscribes to the MQTT $SYS/# topic and/or to any number of topics  you
-specify, and prints values to stdout for collectd to process in an exec plugin
-block.
+*mqttcollect* is an executable program which is used with collectd(1). It
+subscribes to any number of MQTT topics you specify, and prints values to
+stdout for collectd to process in an exec plugin block.
 
 	PUTVAL tiggr/mqtt‐sys/gauge‐clients.inactive 1430914033:0.00
 
-_collectd_ launches mqtt‐sys which connects to the configured  MQTT  bro‐ ker,
-subscribes and waits for publishes to subscribed topics in an end‐ less loop.
-If an error occurs or the program exits for  whichever  rea‐ son,  collectd
-will restart it, and collectd logs the reason it its log file.
+_collectd_ launches *mqttcollect* which connects to the configured MQTT broker,
+subscribes and waits for publishes to subscribed topics in an endless loop.
+If an error occurs or the program exits for whichever reason, _collectd_
+will restart and log the reason in its log file.
 
 # OPTIONS
 
@@ -81,7 +80,7 @@ from the specified JSON element (`vel`, `alt`, and `trip` respectively). Using t
 	PUTVAL tiggr/mqttcollect/counter-vehicle/BB/odometer 1431535440:8246531.00
 
 In example `2`, the program will subscribe to a single topic, and will produce a
-metric renamed  to `clients.inactive`.
+metric renamed to `clients.inactive`.
 
 	PUTVAL tiggr/mqttcollect/gauge-clients.inactive 1431535434:1.00
 
@@ -109,6 +108,7 @@ Yes.
 
 # SEE ALSO
 
+* `collectd`(1).
 * <https://github.com/jpmens/mqttwarn>
 
 # AUTHOR
