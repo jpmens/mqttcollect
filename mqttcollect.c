@@ -371,6 +371,8 @@ void cb_sub(struct mosquitto *mosq, void *userdata, const struct mosquitto_messa
 
 			number = json_object(json, mh->element);
 
+			json_delete(json);
+
 		} else {
 			utstring_printf(metric_name, "%s", mh->metric);
 			number = atof(payload);
