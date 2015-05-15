@@ -12,6 +12,14 @@ port = 1883
 ; ca_file = 
 ; nodename = foob
 
+; progname is the program name (default "mqttcollect") used in PUTVAL
+; prefix is optional (defaults to NULL) and can be used to
+; differentiate multiple services of the same type. eg. setting to "PREFIX":
+; PUTVAL tiggr/mqttcollect-PREFIX/counter-vehicle.....
+
+; progname = mqttcollect
+; prefix   = PREFIX
+
 ; Examples
 ; password = s1ckr3t		; a password
 ; password = s1c;k r3t          ; a password with a semicolon and a space in it

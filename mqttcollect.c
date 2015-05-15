@@ -63,11 +63,14 @@ typedef struct {
     const char *psk_key;
     const char *psk_identity;
     const char *ca_file;
+    const char *progname;
+    const char *prefix;
 } config;
 
 static config cf = {
 	.host		= "localhost",
-	.port		= 1883
+	.port		= 1883,
+	.progname	= PROGNAME
 };
 
 /*
@@ -122,6 +125,10 @@ static int handler(void *cf, const char *section, const char *key, const char *v
 			c->ca_file = strdup(val);
 		if (_eq("nodename"))
 			c->nodename = strdup(val);
+		if (_eq("progname"))
+			c->progname = strdup(val);
+		if (_eq("prefix"))
+			c->prefix = strdup(val);
 
 		if (_eq("port"))
 			c->port = atoi(val);
@@ -315,6 +322,7 @@ void cb_sub(struct mosquitto *mosq, void *userdata, const struct mosquitto_messa
 {
 	char *topic = msg->topic;
 	char *payload = msg->payload;
+	static UT_string *pfix;
 	struct udata *ud = (struct udata *)userdata;
 	time_t now;
 	struct topics_h *th, *currth = NULL;
@@ -344,6 +352,12 @@ void cb_sub(struct mosquitto *mosq, void *userdata, const struct mosquitto_messa
 	}
 
 	time(&now);
+
+	utstring_renew(pfix);
+	utstring_printf(pfix, "%s", cf.progname);
+	if (cf.prefix && *cf.prefix) {
+		utstring_printf(pfix, "-%s", cf.prefix);
+	}
 
 	/*
 	 * For each of the metrics configured for this subscription, do the
@@ -377,9 +391,10 @@ void cb_sub(struct mosquitto *mosq, void *userdata, const struct mosquitto_messa
 			utstring_printf(metric_name, "%s", mh->metric);
 			number = atof(payload);
 		}
+
 		printf("PUTVAL %s/%s/%s-%s %ld:%.2lf\n",
 			ud->nodename,
-			PROGNAME,
+			utstring_body(pfix),
 			mh->type,
 			utstring_body(metric_name),
 			now,
