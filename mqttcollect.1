@@ -75,6 +75,7 @@ counter\ =\ vehicle/{tid}/odometer<trip
 gauge\ =\ clients.inactive
 
 ;\ (3)\ subscribe\ to\ one\ topic\ and\ KEEP\ its\ name
+;\ use\ the\ "*"\-form\ for\ wildcarded\ topics
 
 [$SYS/broker/load/messages/received/1min]
 gauge\ =\ *
@@ -120,7 +121,8 @@ PUTVAL\ tiggr/mqttcollect/gauge\-clients.inactive\ 1431535434:1.00
 .fi
 .PP
 Example \f[C]3\f[] subscribes to the single topic and does \f[I]not\f[]
-rename the metric:
+rename the metric (note the \f[C]*\f[]); this is what you\[aq]ll
+typically use for wildcarded topic subscribes.
 .IP
 .nf
 \f[C]

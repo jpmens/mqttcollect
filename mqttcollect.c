@@ -159,11 +159,11 @@ static int handler(void *cf, const char *section, const char *key, const char *v
 		*p = 0;
 		utstring_printf(metric, "%s", val);
 	} else {
-		// utstring_printf(elem, "%s", val);
 		utstring_clear(elem);
 
 		if (strcmp(val, "*") == 0) {		/* copy section/topic name to metric */
 			utstring_printf(metric, "%s", section);
+			utstring_printf(elem, "*");	/* indicate wildcard */
 		} else {
 			utstring_printf(metric, "%s", val);
 		}
@@ -376,7 +376,7 @@ void cb_sub(struct mosquitto *mosq, void *userdata, const struct mosquitto_messa
 		if (verbose)
 			fprintf(stderr, "     =====[ %s ] (%s) %s\n", mh->metric, mh->type, mh->element);
 
-		if (mh->element != NULL) {	/* JSON */
+		if (mh->element && strcmp(mh->element, "*") != 0) {	/* JSON */
 			if ((json = json_decode(payload)) == NULL) {
 				continue;
 			}
@@ -388,7 +388,11 @@ void cb_sub(struct mosquitto *mosq, void *userdata, const struct mosquitto_messa
 			json_delete(json);
 
 		} else {
-			utstring_printf(metric_name, "%s", mh->metric);
+			if (strcmp(mh->element, "*") == 0) {
+				utstring_printf(metric_name, "%s", topic);
+			} else {
+				utstring_printf(metric_name, "%s", mh->metric);
+			}
 			number = atof(payload);
 		}
 

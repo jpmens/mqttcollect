@@ -69,6 +69,7 @@ Within a *topic* section, metrics collected by *collectd* are specified.
     gauge = clients.inactive
 
     ; (3) subscribe to one topic and KEEP its name
+    ; use the "*"-form for wildcarded topics
 
     [$SYS/broker/load/messages/received/1min]
     gauge = *
@@ -97,7 +98,8 @@ produce a metric renamed to `clients.inactive`.
     PUTVAL tiggr/mqttcollect/gauge-clients.inactive 1431535434:1.00
 
 Example `3` subscribes to the single topic and does *not* rename the
-metric:
+metric (note the `*`); this is what you'll typically use for wildcarded
+topic subscribes.
 
     PUTVAL tiggr/mqttcollect/gauge-$SYS/broker/load/messages/received/1min 1431535557:61.47
 
