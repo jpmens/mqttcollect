@@ -1,4 +1,4 @@
-; Configuration for mqtt-sys
+; Configuration for mqttcollect
 ; Comments are introduced with ; also inline after white space
 ; White space around '=' is stripped
 
