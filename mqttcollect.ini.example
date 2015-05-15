@@ -14,8 +14,8 @@ port = 1883
 
 ; progname is the program name (default "mqttcollect") used in PUTVAL
 ; prefix is optional (defaults to NULL) and can be used to
-; differentiate multiple services of the same type. eg. setting to "PREFIX":
-; PUTVAL tiggr/mqttcollect-PREFIX/counter-vehicle.....
+; differentiate multiple services of the same type.
+; PUTVAL <nodename>/<progname>[-<prefix>]/<type>-<metricname>
 
 ; progname = mqttcollect
 ; prefix   = PREFIX
