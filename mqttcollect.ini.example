@@ -45,3 +45,8 @@ gauge = clients.inactive
 
 [$SYS/broker/load/messages/received/1min]
 gauge = *
+
+; Can be used with temperature-simulator.py
+
+[arduino/temp/+]
+gauge = heat.{room}<celsius
