@@ -34,6 +34,7 @@ OPTIONS
 -f *file*
 :   Specify an ini-type configuration file (see below), which defaults
     to `/usr/local/etc/mqttcollect.ini`.
+
 -v
 :   Verbose.
 

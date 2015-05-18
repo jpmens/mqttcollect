@@ -32,8 +32,9 @@ authentication, and TLS-PSK, all configured via its configuration file.
 
 -f *file*
 :   Specify an ini-type configuration file (see below), which defaults to `/usr/local/etc/mqttcollect.ini`.
+
 -v
-:   Verbose. 
+:   Verbose.
 
 
 # CONFIGURATION
