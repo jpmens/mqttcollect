@@ -50,6 +50,9 @@
 # define FALSE (0)
 #endif
 
+#define SSL_VERIFY_PEER	(1)
+#define SSL_VERIFY_NONE	(0)
+
 #define PROGNAME	"mqttcollect"
 #define CONFIGFILE	"/usr/local/etc/mqttcollect.ini"
 #define SECTION  	"defaults"
@@ -63,6 +66,8 @@ typedef struct {
     const char *psk_key;
     const char *psk_identity;
     const char *ca_file;
+    const char *certfile;
+    const char *keyfile;
     const char *progname;
     const char *prefix;
 } config;
@@ -123,6 +128,10 @@ static int handler(void *cf, const char *section, const char *key, const char *v
 			c->psk_identity = strdup(val);
 		if (_eq("ca_file"))
 			c->ca_file = strdup(val);
+		if (_eq("certfile"))
+			c->certfile = strdup(val);
+		if (_eq("keyfile"))
+			c->keyfile = strdup(val);
 		if (_eq("nodename"))
 			c->nodename = strdup(val);
 		if (_eq("progname"))
@@ -212,6 +221,7 @@ static struct mosquitto *m = NULL;
 
 struct udata {
 	char *nodename;
+	struct topics_h *topics_h;
 };
 
 void catcher(int sig)
@@ -406,11 +416,39 @@ void cb_sub(struct mosquitto *mosq, void *userdata, const struct mosquitto_messa
 	}
 }
 
+void cb_connect(struct mosquitto *mosq, void *userdata, int rc)
+{
+	struct udata *ud = (struct udata *)userdata;
+	struct topics_h *th;
+
+	/*
+	 * Set up an MQTT subscription for each of the topics we have
+	 * in the topics hash.
+	 */
+
+	for (th = ud->topics_h; th != NULL; th = th->hh.next) {
+		// fprintf(stderr, "%s: subscribe to %s\n", PROGNAME, th->topic);
+		mosquitto_subscribe(m, NULL, th->topic, 0);
+	}
+}
+
 void cb_disconnect(struct mosquitto *mosq, void *userdata, int rc)
 {
+	char *explain = NULL;
+
 	if (rc == 0) {
 		// Disconnect requested by client
 	} else {
+		switch (rc) {
+			case 7: explain = "Broker disconnected. Reconnecting.."; break;
+		}
+
+		if (explain) {
+			fprintf(stderr, "%s: disconnected: reason: %d (%s) [%s]\n",
+				PROGNAME, rc, strerror(errno), explain);
+			return;
+		}
+
 		fprintf(stderr, "%s: disconnected: reason: %d (%s)\n",
 			PROGNAME, rc, strerror(errno));
 		fatal();
@@ -427,8 +465,6 @@ int main(int argc, char **argv)
 	int tls_insecure = FALSE;
 	struct udata udata;
 	char *configfile = CONFIGFILE;
-	struct topics_h *th;
-
 
 	setvbuf(stdout, NULL, _IONBF, 0);
 
@@ -480,6 +516,7 @@ int main(int argc, char **argv)
 	mosquitto_lib_init();
 
 	udata.nodename = (char *)cf.nodename;
+	udata.topics_h = topics_h;
 
 	sprintf(clientid, "%s-%d", PROGNAME, getpid());
 	if ((m = mosquitto_new(clientid, TRUE, (void *)&udata)) == NULL) {
@@ -495,15 +532,24 @@ int main(int argc, char **argv)
 			exit(3);
 		}
 	} else if (cf.ca_file) {
-		rc = mosquitto_tls_set(m, cf.ca_file, NULL, NULL, NULL, NULL);
+		rc = mosquitto_tls_set(m,
+			cf.ca_file,		/* cafile */
+			NULL,			/* capath */
+			cf.certfile,		/* certfile */
+			cf.keyfile,		/* keyfile */
+			NULL			/* pw_callback() */
+			);
 		if (rc != MOSQ_ERR_SUCCESS) {
-			fprintf(stderr, "Cannot set TLS PSK: %s\n",
+			fprintf(stderr, "Cannot set TLS CA: %s (check path names)\n",
 				mosquitto_strerror(rc));
 			exit(3);
 		}
 
-		/* FIXME */
-		// mosquitto_tls_opts_set(m, SSL_VERIFY_PEER, "tlsv1", NULL);
+		mosquitto_tls_opts_set(m,
+			SSL_VERIFY_PEER,
+			NULL,			/* tls_version: "tlsv1.2", "tlsv1" */
+			NULL			/* ciphers */
+			);
 
 		if (tls_insecure) {
 #if LIBMOSQUITTO_VERSION_NUMBER >= 1002000
@@ -518,7 +564,13 @@ int main(int argc, char **argv)
 	}
 
 	mosquitto_message_callback_set(m, cb_sub);
+	mosquitto_connect_callback_set(m, cb_connect);
 	mosquitto_disconnect_callback_set(m, cb_disconnect);
+
+	mosquitto_reconnect_delay_set(m,
+		1,      /* delay */
+		10,     /* delay_max */
+		FALSE); /* exponential backoff */
 
 	if ((rc = mosquitto_connect(m, cf.host, cf.port, keepalive)) != MOSQ_ERR_SUCCESS) {
 		fprintf(stderr, "Unable to connect to %s:%d: %s\n", cf.host, cf.port,
@@ -529,29 +581,16 @@ int main(int argc, char **argv)
 
 	signal(SIGINT, catcher);
 
-	/*
-	 * Set up an MQTT subscription for each of the topics we have
-	 * in the topics hash.
-	 */
-
-	for (th = topics_h; th != NULL; th = th->hh.next) {
-		// fprintf(stderr, "%s: subscribe to %s\n", PROGNAME, th->topic);
-		mosquitto_subscribe(m, NULL, th->topic, 0);
-	}
-
 	while (1) {
-		int rc = mosquitto_loop(m, -1, 1);
-		if (rc) {
-			sleep(15);
-			mosquitto_reconnect(m);
-		}
+		rc = mosquitto_loop_forever(m, -1, 1);
+		fprintf(stderr, "loop_forever returns %d\n", rc);
 	}
 
 	/* Unreached */
 
 	/*
 	 * There's a tonne of memory we ought to free (topics_h, etc) but
-	 * we don't get here, so nobody will notice.
+	 * we don't get here, so nobody will notice...
 	 */
 
 

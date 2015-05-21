@@ -10,6 +10,8 @@ port = 1883
 ; psk_key = 
 ; psk_identity = 
 ; ca_file = 
+; certfile =
+; keyfile =
 ; nodename = foob
 
 ; progname is the program name (default "mqttcollect") used in PUTVAL
