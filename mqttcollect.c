@@ -457,8 +457,8 @@ void cb_disconnect(struct mosquitto *mosq, void *userdata, int rc)
 
 int main(int argc, char **argv)
 {
-	char ch, *progname = *argv;
-	int usage = 0, rc;
+	char *progname = *argv;
+	int ch, usage = 0, rc;
 	struct utsname uts;
 	char clientid[80];
 	int keepalive = 60;
