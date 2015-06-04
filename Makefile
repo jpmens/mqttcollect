@@ -3,7 +3,7 @@ BINDIR=$(PREFIX)/bin
 MANDIR=$(PREFIX)/share/man/man1
 
 CFLAGS= -Wall -Werror
-LDFLAGS=-lmosquitto
+LDFLAGS=-lmosquitto # -lssl -lcrypto -lrt
 
 all: mqttcollect
 
