@@ -405,7 +405,8 @@ void cb_sub(struct mosquitto *mosq, void *userdata, const struct mosquitto_messa
 			}
 			number = atof(payload);
 		} else {
-			fprintf(stderr, "I don't know how to handle this\n");
+			utstring_printf(metric_name, "%s", mh->metric);
+			number = atof(payload);
 		}
 
 		printf("PUTVAL %s/%s/%s-%s %ld:%.2lf\n",
