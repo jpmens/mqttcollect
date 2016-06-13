@@ -397,13 +397,15 @@ void cb_sub(struct mosquitto *mosq, void *userdata, const struct mosquitto_messa
 
 			json_delete(json);
 
-		} else {
+		} else if (mh->element) {
 			if (strcmp(mh->element, "*") == 0) {
 				utstring_printf(metric_name, "%s", topic);
 			} else {
 				utstring_printf(metric_name, "%s", mh->metric);
 			}
 			number = atof(payload);
+		} else {
+			fprintf(stderr, "I don't know how to handle this\n");
 		}
 
 		printf("PUTVAL %s/%s/%s-%s %ld:%.2lf\n",
